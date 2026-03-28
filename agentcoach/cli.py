@@ -1,23 +1,32 @@
 import os
 import sys
 from dotenv import load_dotenv
-from agentcoach.llm.gemini import GeminiAdapter
 from agentcoach.coach import Coach
 
 
 def main():
     load_dotenv()
-    api_key = os.getenv("GEMINI_API_KEY")
+
+    provider = os.getenv("LLM_PROVIDER", "minimax")
+    api_key = os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY")
+    model = os.getenv("LLM_MODEL", "")
+
     if not api_key:
-        print("Error: Set GEMINI_API_KEY in .env or environment")
+        print("Error: Set LLM_API_KEY in .env")
         sys.exit(1)
 
     print("=== AgentCoach — AI Mock Interview Coach ===")
+    print(f"Provider: {provider}")
     print("Mode: Behavioral Interview")
-    print("Type 'quit' to exit, 'feedback' for session summary")
+    print("Type 'quit' to exit")
     print()
 
-    llm = GeminiAdapter(api_key=api_key)
+    if provider == "gemini":
+        from agentcoach.llm.gemini import GeminiAdapter
+        llm = GeminiAdapter(api_key=api_key, model=model or "gemini-2.0-flash")
+    else:
+        from agentcoach.llm.openai_compat import OpenAICompatAdapter
+        llm = OpenAICompatAdapter(api_key=api_key, provider=provider, model=model)
     coach = Coach(llm=llm, mode="behavioral")
 
     # Start interview
