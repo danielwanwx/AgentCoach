@@ -24,7 +24,7 @@ def main():
     print(f"Provider: {provider}")
     print("Mode: Behavioral Interview")
     print("Type 'quit' to exit")
-    print("Commands: 'import profile <text>', 'import jd <text>', 'memory'")
+    print("Commands: 'import profile <text>', 'import jd <text>', 'load resume <file>', 'load jd <file>', 'memory'")
     print()
 
     if provider == "gemini":
@@ -70,6 +70,28 @@ def main():
                 print(f"\n{ctx}\n")
             else:
                 print("No memory stored yet.\n")
+            continue
+
+        if user_input.lower().startswith("load resume "):
+            filepath = user_input[len("load resume "):].strip()
+            try:
+                from agentcoach.memory.importer import import_file
+                content = import_file(filepath)
+                mem.save_profile(content)
+                print(f"Resume loaded from {filepath} and saved to memory.")
+            except FileNotFoundError as e:
+                print(f"Error: {e}")
+            continue
+
+        if user_input.lower().startswith("load jd "):
+            filepath = user_input[len("load jd "):].strip()
+            try:
+                from agentcoach.memory.importer import import_file
+                content = import_file(filepath)
+                mem.save_jd(content)
+                print(f"JD loaded from {filepath} and saved to memory.")
+            except FileNotFoundError as e:
+                print(f"Error: {e}")
             continue
 
         response = coach.respond(user_input)
