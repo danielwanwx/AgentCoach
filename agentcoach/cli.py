@@ -5,6 +5,14 @@ from agentcoach.coach import Coach
 from agentcoach.memory.store import CoachMemory
 
 
+def _speak(tts, text: str):
+    if tts:
+        try:
+            tts.speak(text)
+        except Exception as e:
+            print(f"(TTS error: {e})")
+
+
 def main():
     load_dotenv()
 
@@ -16,15 +24,27 @@ def main():
         print("Error: Set LLM_API_KEY in .env")
         sys.exit(1)
 
+    # Initialize TTS
+    tts_engine_name = os.getenv("TTS_ENGINE", "macos")  # macos, qwen, none
+    tts = None
+    if tts_engine_name == "macos":
+        from agentcoach.voice.tts import MacOSTTS
+        tts = MacOSTTS(voice=os.getenv("TTS_VOICE", "Samantha"))
+    elif tts_engine_name == "qwen":
+        from agentcoach.voice.tts import QwenTTS
+        tts = QwenTTS(lazy=True)
+    # tts_engine_name == "none" → tts stays None
+
     # Initialize memory and load context
     mem = CoachMemory()
     memory_context = mem.get_context()
 
     print("=== AgentCoach — AI Mock Interview Coach ===")
     print(f"Provider: {provider}")
+    print(f"TTS: {tts_engine_name}")
     print("Mode: Behavioral Interview")
     print("Type 'quit' to exit")
-    print("Commands: 'import profile <text>', 'import jd <text>', 'load resume <file>', 'load jd <file>', 'memory'")
+    print("Commands: 'import profile <text>', 'import jd <text>', 'load resume <file>', 'load jd <file>', 'memory', 'voice on', 'voice off'")
     print()
 
     if provider == "gemini":
@@ -38,6 +58,7 @@ def main():
     # Start interview
     opening = coach.start()
     print(f"Coach: {opening}\n")
+    _speak(tts, opening)
 
     def _end_session(coach, mem):
         """Generate and save feedback if there was meaningful conversation."""
@@ -106,8 +127,21 @@ def main():
                 print(f"Error: {e}")
             continue
 
+        if user_input.lower() == "voice on":
+            if not tts:
+                from agentcoach.voice.tts import MacOSTTS
+                tts = MacOSTTS()
+            print("Voice enabled.")
+            continue
+
+        if user_input.lower() == "voice off":
+            tts = None
+            print("Voice disabled.")
+            continue
+
         response = coach.respond(user_input)
         print(f"\nCoach: {response}\n")
+        _speak(tts, response)
 
 
 if __name__ == "__main__":
