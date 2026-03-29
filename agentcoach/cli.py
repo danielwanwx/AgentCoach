@@ -2,6 +2,7 @@ import os
 import sys
 from dotenv import load_dotenv
 from agentcoach.coach import Coach
+from agentcoach.memory.store import CoachMemory
 
 
 def main():
@@ -15,10 +16,15 @@ def main():
         print("Error: Set LLM_API_KEY in .env")
         sys.exit(1)
 
+    # Initialize memory and load context
+    mem = CoachMemory()
+    memory_context = mem.get_context()
+
     print("=== AgentCoach — AI Mock Interview Coach ===")
     print(f"Provider: {provider}")
     print("Mode: Behavioral Interview")
     print("Type 'quit' to exit")
+    print("Commands: 'import profile <text>', 'import jd <text>', 'memory'")
     print()
 
     if provider == "gemini":
@@ -27,7 +33,7 @@ def main():
     else:
         from agentcoach.llm.openai_compat import OpenAICompatAdapter
         llm = OpenAICompatAdapter(api_key=api_key, provider=provider, model=model)
-    coach = Coach(llm=llm, mode="behavioral")
+    coach = Coach(llm=llm, mode="behavioral", memory_context=memory_context)
 
     # Start interview
     opening = coach.start()
@@ -45,6 +51,26 @@ def main():
         if user_input.lower() == "quit":
             print("Session ended. Good luck with your interviews!")
             break
+
+        if user_input.lower().startswith("import profile "):
+            text = user_input[len("import profile "):].strip()
+            mem.save_profile(text)
+            print("Profile saved to memory.")
+            continue
+
+        if user_input.lower().startswith("import jd "):
+            text = user_input[len("import jd "):].strip()
+            mem.save_jd(text)
+            print("JD saved to memory.")
+            continue
+
+        if user_input.lower() == "memory":
+            ctx = mem.get_context()
+            if ctx:
+                print(f"\n{ctx}\n")
+            else:
+                print("No memory stored yet.\n")
+            continue
 
         response = coach.respond(user_input)
         print(f"\nCoach: {response}\n")

@@ -1,12 +1,12 @@
 from agentcoach.llm.base import LLMAdapter, Message
-from agentcoach.prompt.templates import get_coach_system_prompt
+from agentcoach.prompt.templates import build_system_prompt
 
 
 class Coach:
-    def __init__(self, llm: LLMAdapter, mode: str = "behavioral"):
+    def __init__(self, llm: LLMAdapter, mode: str = "behavioral", memory_context: str = ""):
         self.llm = llm
         self.mode = mode
-        system_prompt = get_coach_system_prompt(mode)
+        system_prompt = build_system_prompt(mode, memory_context)
         self.history: list = [Message(role="system", content=system_prompt)]
 
     def start(self) -> str:
