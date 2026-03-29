@@ -39,16 +39,28 @@ def main():
     opening = coach.start()
     print(f"Coach: {opening}\n")
 
+    def _end_session(coach, mem):
+        """Generate and save feedback if there was meaningful conversation."""
+        if len(coach.history) > 2:
+            print("\nGenerating session feedback...")
+            feedback = coach.get_feedback_summary()
+            if feedback:
+                print(f"\n{feedback}\n")
+                mem.save_feedback(feedback)
+                print("Feedback saved to memory.")
+
     while True:
         try:
             user_input = input("You: ").strip()
         except (KeyboardInterrupt, EOFError):
+            _end_session(coach, mem)
             print("\nSession ended.")
             break
 
         if not user_input:
             continue
         if user_input.lower() == "quit":
+            _end_session(coach, mem)
             print("Session ended. Good luck with your interviews!")
             break
 

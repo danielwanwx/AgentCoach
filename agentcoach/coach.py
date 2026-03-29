@@ -21,3 +21,14 @@ class Coach:
         response = self.llm.generate(self.history)
         self.history.append(Message(role="assistant", content=response))
         return response
+
+    def get_feedback_summary(self) -> str:
+        """Ask the LLM to summarize the session with strengths/weaknesses."""
+        if len(self.history) < 3:  # need at least system + some conversation
+            return ""
+        self.history.append(Message(
+            role="user",
+            content="Please provide a brief summary of this interview session. Include: 1) Key strengths demonstrated, 2) Areas for improvement, 3) Overall score out of 10. Be specific and actionable."
+        ))
+        response = self.llm.generate(self.history)
+        return response
