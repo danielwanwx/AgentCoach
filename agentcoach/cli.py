@@ -35,6 +35,10 @@ def main():
         tts = QwenTTS(lazy=True)
     # tts_engine_name == "none" → tts stays None
 
+    if tts:
+        from agentcoach.voice.tts import AsyncTTSWrapper
+        tts = AsyncTTSWrapper(tts)
+
     # Initialize memory and load context
     mem = CoachMemory()
     memory_context = mem.get_context()
@@ -129,8 +133,8 @@ def main():
 
         if user_input.lower() == "voice on":
             if not tts:
-                from agentcoach.voice.tts import MacOSTTS
-                tts = MacOSTTS()
+                from agentcoach.voice.tts import MacOSTTS, AsyncTTSWrapper
+                tts = AsyncTTSWrapper(MacOSTTS())
             print("Voice enabled.")
             continue
 

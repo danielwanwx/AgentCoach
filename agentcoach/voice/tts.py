@@ -63,3 +63,23 @@ class QwenTTS(TTSEngine):
             wavfile.write(tmp_path, sr, (wavs[0].cpu().numpy() * 32767).astype(np.int16))
         subprocess.run(["afplay", tmp_path], check=False)
         os.unlink(tmp_path)
+
+
+import threading
+
+
+class AsyncTTSWrapper(TTSEngine):
+    """Wraps any TTS engine to speak in a background thread."""
+
+    def __init__(self, engine: TTSEngine):
+        self.engine = engine
+        self._thread = None
+
+    def speak(self, text: str) -> None:
+        # Wait for previous speech to finish before starting new one
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=0.1)
+        self._thread = threading.Thread(
+            target=self.engine.speak, args=(text,), daemon=True
+        )
+        self._thread.start()
