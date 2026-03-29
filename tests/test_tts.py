@@ -24,3 +24,9 @@ def test_macos_tts_custom_voice():
         cmd = mock_sub.run.call_args[0][0]
         assert "Alex" in cmd
         assert "200" in cmd
+
+def test_qwen_tts_lazy_initialization():
+    """QwenTTS can be instantiated with lazy loading — model not loaded until speak()."""
+    from agentcoach.voice.tts import QwenTTS
+    tts = QwenTTS(device="cpu", lazy=True)
+    assert tts.model is None
