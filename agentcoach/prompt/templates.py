@@ -23,3 +23,10 @@ def get_coach_system_prompt(mode: str) -> str:
     if mode not in TEMPLATES:
         raise ValueError(f"Unknown mode: {mode}. Available: {list(TEMPLATES.keys())}")
     return TEMPLATES[mode]
+
+
+def build_system_prompt(mode: str, memory_context: str = "") -> str:
+    base = get_coach_system_prompt(mode)
+    if not memory_context:
+        return base
+    return f"{base}\n\n## What You Know About This Candidate\n\n{memory_context}"
