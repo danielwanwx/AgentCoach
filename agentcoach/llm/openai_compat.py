@@ -1,7 +1,13 @@
 """OpenAI-compatible LLM adapter — works with MiniMax, DeepSeek, OpenAI, etc."""
+import re
 import time
 import openai
 from agentcoach.llm.base import LLMAdapter, Message
+
+
+def _strip_think_tags(text: str) -> str:
+    """Strip <think>...</think> blocks from reasoning model output."""
+    return re.sub(r"<think>[\s\S]*?</think>\s*", "", text).strip()
 
 _MAX_RETRIES = 3
 _RETRY_DELAY = 2
@@ -39,7 +45,8 @@ class OpenAICompatAdapter(LLMAdapter):
                     model=self.model_name,
                     messages=api_messages,
                 )
-                return resp.choices[0].message.content or ""
+                text = resp.choices[0].message.content or ""
+                return _strip_think_tags(text)
             except openai.RateLimitError:
                 if attempt < _MAX_RETRIES - 1:
                     time.sleep(_RETRY_DELAY * (attempt + 1))

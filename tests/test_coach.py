@@ -27,4 +27,4 @@ def test_coach_respond_maintains_history():
 
     assert response == "Great. Tell me about a time you led a project."
     call_args = mock_llm.generate.call_args[0][0]
-    assert len(call_args) == 4
+    assert len(call_args) == 5  # system + start_user + assistant + user + response

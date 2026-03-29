@@ -11,6 +11,7 @@ class Coach:
 
     def start(self) -> str:
         """Start the interview session. Returns coach's opening message."""
+        self.history.append(Message(role="user", content="Hi, I'm ready to start the mock interview. Please begin."))
         response = self.llm.generate(self.history)
         self.history.append(Message(role="assistant", content=response))
         return response
@@ -24,7 +25,7 @@ class Coach:
 
     def get_feedback_summary(self) -> str:
         """Ask the LLM to summarize the session with strengths/weaknesses."""
-        if len(self.history) < 3:  # need at least system + some conversation
+        if len(self.history) < 5:  # need system + start + assistant + at least one real exchange
             return ""
         self.history.append(Message(
             role="user",
