@@ -43,6 +43,19 @@ def main():
     mem = CoachMemory()
     memory_context = mem.get_context()
 
+    # Initialize KB store
+    from agentcoach.kb.store import KnowledgeStore
+    kb = KnowledgeStore(use_vectors=False)  # Start with FTS only, vector optional
+    try:
+        kb_stats = kb.get_stats()
+        if kb_stats["total_chunks"] > 0:
+            kb_active = kb
+            print(f"Knowledge Base: {kb_stats['total_chunks']} chunks loaded")
+        else:
+            kb_active = None
+    except Exception:
+        kb_active = None
+
     print("=== AgentCoach — AI Mock Interview Coach ===")
     print(f"Provider: {provider}")
     print(f"TTS: {tts_engine_name}")
@@ -58,7 +71,7 @@ def main():
     else:
         from agentcoach.llm.openai_compat import OpenAICompatAdapter
         llm = OpenAICompatAdapter(api_key=api_key, provider=provider, model=model)
-    coach = Coach(llm=llm, mode="behavioral", memory_context=memory_context)
+    coach = Coach(llm=llm, mode="behavioral", memory_context=memory_context, kb_store=kb_active)
 
     # Start interview
     opening = coach.start()

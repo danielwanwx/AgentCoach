@@ -25,8 +25,11 @@ def get_coach_system_prompt(mode: str) -> str:
     return TEMPLATES[mode]
 
 
-def build_system_prompt(mode: str, memory_context: str = "") -> str:
+def build_system_prompt(mode: str, memory_context: str = "", kb_context: str = "") -> str:
     base = get_coach_system_prompt(mode)
-    if not memory_context:
-        return base
-    return f"{base}\n\n## What You Know About This Candidate\n\n{memory_context}"
+    parts = [base]
+    if memory_context:
+        parts.append(f"## What You Know About This Candidate\n\n{memory_context}")
+    if kb_context:
+        parts.append(f"## Relevant Knowledge Base\n\nUse this knowledge to ask better questions and evaluate answers:\n\n{kb_context}")
+    return "\n\n".join(parts)
