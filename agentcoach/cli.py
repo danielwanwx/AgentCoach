@@ -48,7 +48,8 @@ def main():
     print(f"TTS: {tts_engine_name}")
     print("Mode: Behavioral Interview")
     print("Type 'quit' to exit")
-    print("Commands: 'import profile <text>', 'import jd <text>', 'load resume <file>', 'load jd <file>', 'memory', 'voice on', 'voice off'")
+    print("Commands: 'import profile <text>', 'import jd <text>', 'load resume <file>', 'load jd <file>',")
+    print("          'load kb <dir> [category]', 'kb stats', 'kb search <query>', 'memory', 'voice on', 'voice off'")
     print()
 
     if provider == "gemini":
@@ -128,6 +129,51 @@ def main():
                 mem.save_jd(content)
                 print(f"JD loaded from {filepath} and saved to memory.")
             except FileNotFoundError as e:
+                print(f"Error: {e}")
+            continue
+
+        if user_input.lower().startswith("load kb "):
+            parts = user_input[len("load kb "):].strip().split(maxsplit=1)
+            dir_path = parts[0]
+            cat = parts[1] if len(parts) > 1 else "general"
+            try:
+                from agentcoach.kb.indexer import index_directory
+                from agentcoach.kb.store import KnowledgeStore
+                kb = KnowledgeStore()
+                print(f"Indexing {dir_path} (category: {cat})...")
+                stats = index_directory(dir_path, kb, category=cat)
+                print(f"Done: {stats['files_processed']} files, {stats['chunks_added']} chunks indexed.")
+                if stats['errors']:
+                    print(f"Errors: {len(stats['errors'])}")
+            except Exception as e:
+                print(f"Error: {e}")
+            continue
+
+        if user_input.lower() == "kb stats":
+            try:
+                from agentcoach.kb.store import KnowledgeStore
+                kb = KnowledgeStore()
+                stats = kb.get_stats()
+                print(f"\nKnowledge Base: {stats['total_chunks']} chunks, {stats['total_sources']} sources")
+                print(f"Categories: {', '.join(stats['categories']) if stats['categories'] else 'none'}\n")
+            except Exception as e:
+                print(f"Error: {e}")
+            continue
+
+        if user_input.lower().startswith("kb search "):
+            query = user_input[len("kb search "):].strip()
+            try:
+                from agentcoach.kb.store import KnowledgeStore
+                kb = KnowledgeStore()
+                results = kb.search(query, limit=3)
+                if results:
+                    for i, r in enumerate(results, 1):
+                        print(f"\n--- Result {i} [{r['source']} > {r['section']}] ---")
+                        print(r['content'][:300])
+                else:
+                    print("No results found.")
+                print()
+            except Exception as e:
                 print(f"Error: {e}")
             continue
 
