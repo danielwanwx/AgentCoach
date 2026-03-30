@@ -248,13 +248,34 @@ def _show_progress(syllabus, analytics, user_id, domain):
     print(f"Overall: {avg}% ({scored_count}/{len(topics)} topics started)\n")
 
 
-def _run_session(coach, mem, tts, analytics, user_id, topic, mode):
+def _score_and_save(coach, analytics, user_id, topic, mode, llm):
+    """Score the session and save results if there was enough conversation."""
+    if len(coach.history) > 4:
+        try:
+            from agentcoach.analytics.scorer import Scorer
+            print("Analyzing session performance...")
+            scorer = Scorer(llm)
+            topic_id = topic["id"] if topic else ""
+            scores = scorer.score_session(coach.history, mode=mode, topic_id=topic_id)
+            if scores:
+                print("\n--- Session Scores ---")
+                for s in scores:
+                    analytics.record_score(user_id, s["topic_id"], s["score_delta"], mode, s["evidence"])
+                    sign = "+" if s["score_delta"] > 0 else ""
+                    print(f"  {s['topic_id']}: {sign}{s['score_delta']} — {s['evidence']}")
+                print()
+        except Exception as e:
+            print(f"(Scoring error: {e})")
+
+
+def _run_session(coach, mem, tts, analytics, user_id, topic, mode, llm):
     """Run an interactive session until user quits."""
     while True:
         try:
             user_input = input("You: ").strip()
         except (KeyboardInterrupt, EOFError):
             _end_session(coach, mem)
+            _score_and_save(coach, analytics, user_id, topic, mode, llm)
             print("\nSession ended.")
             return
 
@@ -262,6 +283,7 @@ def _run_session(coach, mem, tts, analytics, user_id, topic, mode):
             continue
         if user_input.lower() in ("quit", "done", "exit"):
             _end_session(coach, mem)
+            _score_and_save(coach, analytics, user_id, topic, mode, llm)
             print("Session ended.")
             return
         if user_input.lower() == "memory":
@@ -354,9 +376,17 @@ def main():
         elif mode == "mock":
             mode_hint = f"\nMode: Mock Interview — Domain: {syllabus.get_domain_name(domain)}\nConduct a full realistic interview simulation."
 
+        # Map to prompt template key
+        if mode == "mock":
+            prompt_mode = f"mock_{domain}"
+        elif mode in ("learn", "reinforce"):
+            prompt_mode = mode
+        else:
+            prompt_mode = "behavioral"
+
         coach = Coach(
             llm=llm,
-            mode=domain if mode == "mock" else "behavioral",
+            mode=prompt_mode,
             memory_context=mem.get_context() + mode_hint,
             kb_store=kb_active,
         )
@@ -366,7 +396,7 @@ def main():
         print(f"\nCoach: {opening}\n")
         _speak(tts, opening)
 
-        _run_session(coach, mem, tts, analytics, user_id, topic, mode)
+        _run_session(coach, mem, tts, analytics, user_id, topic, mode, llm)
         print()  # blank line before returning to menu
 
 
