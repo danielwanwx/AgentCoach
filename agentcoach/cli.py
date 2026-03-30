@@ -13,6 +13,267 @@ def _speak(tts, text: str):
             print(f"(TTS error: {e})")
 
 
+def _end_session(coach, mem):
+    """Generate and save feedback if there was meaningful conversation."""
+    if len(coach.history) > 2:
+        print("\nGenerating session feedback...")
+        feedback = coach.get_feedback_summary()
+        if feedback:
+            print(f"\n{feedback}\n")
+            mem.save_feedback(feedback)
+            print("Feedback saved to memory.")
+
+
+def _show_menu(syllabus, analytics, recommender, user_id, mem=None):
+    """Show domain/mode selection. Returns (domain, mode, topic) or (None, None, None) to quit."""
+    domains = syllabus.get_domains()
+
+    while True:
+        print("--- Main Menu ---")
+        print("Domains:")
+        for i, d in enumerate(domains, 1):
+            name = syllabus.get_domain_name(d)
+            topics = syllabus.get_topics(d)
+            progress = analytics.get_progress(user_id, d)
+            scored_count = len(progress)
+            print(f"  {i}. {name} ({scored_count}/{len(topics)} topics started)")
+        print()
+        print("Commands: 'progress <domain>', 'recommend', 'quit'")
+        print("Data:     'import profile <text>', 'import jd <text>', 'load resume <file>',")
+        print("          'load jd <file>', 'load kb <dir> [category]', 'kb stats', 'kb search <query>'")
+        print()
+
+        try:
+            choice = input("Select domain (number) or command: ").strip()
+        except (KeyboardInterrupt, EOFError):
+            return None, None, None
+
+        choice_lower = choice.lower()
+
+        if choice_lower == "quit":
+            return None, None, None
+
+        if choice_lower == "recommend":
+            all_topics = []
+            for d in domains:
+                all_topics.extend(syllabus.get_topics(d))
+            if not all_topics:
+                print("No topics found in syllabus.\n")
+                continue
+            rec = recommender.recommend(user_id, all_topics)
+            print(f"\nCoach recommends: {rec['mode'].upper()} — {rec['topic_name']}")
+            print(f"Reason: {rec['reason']}\n")
+            continue
+
+        if choice_lower.startswith("progress"):
+            parts = choice_lower.split(maxsplit=1)
+            if len(parts) < 2:
+                for d in domains:
+                    _show_progress(syllabus, analytics, user_id, d)
+            else:
+                query = parts[1]
+                matched = [d for d in domains if query in d]
+                if matched:
+                    _show_progress(syllabus, analytics, user_id, matched[0])
+                else:
+                    print(f"Unknown domain: {query}")
+            continue
+
+        # Data import commands
+        if choice_lower.startswith("import profile ") and mem:
+            text = choice[len("import profile "):].strip()
+            mem.save_profile(text)
+            print("Profile saved to memory.")
+            continue
+
+        if choice_lower.startswith("import jd ") and mem:
+            text = choice[len("import jd "):].strip()
+            mem.save_jd(text)
+            print("JD saved to memory.")
+            continue
+
+        if choice_lower.startswith("load resume ") and mem:
+            filepath = choice[len("load resume "):].strip()
+            try:
+                from agentcoach.memory.importer import import_file
+                content = import_file(filepath)
+                mem.save_profile(content)
+                print(f"Resume loaded from {filepath} and saved to memory.")
+            except FileNotFoundError as e:
+                print(f"Error: {e}")
+            continue
+
+        if choice_lower.startswith("load jd ") and mem:
+            filepath = choice[len("load jd "):].strip()
+            try:
+                from agentcoach.memory.importer import import_file
+                content = import_file(filepath)
+                mem.save_jd(content)
+                print(f"JD loaded from {filepath} and saved to memory.")
+            except FileNotFoundError as e:
+                print(f"Error: {e}")
+            continue
+
+        if choice_lower.startswith("load kb "):
+            parts = choice[len("load kb "):].strip().split(maxsplit=1)
+            dir_path = parts[0]
+            cat = parts[1] if len(parts) > 1 else "general"
+            try:
+                from agentcoach.kb.indexer import index_directory
+                from agentcoach.kb.store import KnowledgeStore
+                kb = KnowledgeStore()
+                print(f"Indexing {dir_path} (category: {cat})...")
+                stats = index_directory(dir_path, kb, category=cat)
+                print(f"Done: {stats['files_processed']} files, {stats['chunks_added']} chunks indexed.")
+                if stats['errors']:
+                    print(f"Errors: {len(stats['errors'])}")
+            except Exception as e:
+                print(f"Error: {e}")
+            continue
+
+        if choice_lower == "kb stats":
+            try:
+                from agentcoach.kb.store import KnowledgeStore
+                kb = KnowledgeStore()
+                stats = kb.get_stats()
+                print(f"\nKnowledge Base: {stats['total_chunks']} chunks, {stats['total_sources']} sources")
+                print(f"Categories: {', '.join(stats['categories']) if stats['categories'] else 'none'}\n")
+            except Exception as e:
+                print(f"Error: {e}")
+            continue
+
+        if choice_lower.startswith("kb search "):
+            query = choice[len("kb search "):].strip()
+            try:
+                from agentcoach.kb.store import KnowledgeStore
+                kb = KnowledgeStore()
+                results = kb.search(query, limit=3)
+                if results:
+                    for i, r in enumerate(results, 1):
+                        print(f"\n--- Result {i} [{r['source']} > {r['section']}] ---")
+                        print(r['content'][:300])
+                else:
+                    print("No results found.")
+                print()
+            except Exception as e:
+                print(f"Error: {e}")
+            continue
+
+        # Try to parse as domain number
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(domains):
+                domain = domains[idx]
+            else:
+                print("Invalid choice.")
+                continue
+        except ValueError:
+            print("Invalid choice.")
+            continue
+
+        # Now select mode
+        print(f"\nDomain: {syllabus.get_domain_name(domain)}")
+        print("Modes:")
+        print("  L. Learn — study resources + quick quiz")
+        print("  R. Reinforce — strengthen weak topics")
+        print("  M. Mock — full interview simulation")
+        print("  (or 'back' to return)")
+        print()
+
+        try:
+            mode_choice = input("Select mode (L/R/M): ").strip().lower()
+        except (KeyboardInterrupt, EOFError):
+            return None, None, None
+
+        if mode_choice == "back":
+            continue
+
+        mode_map = {"l": "learn", "r": "reinforce", "m": "mock"}
+        mode = mode_map.get(mode_choice)
+        if not mode:
+            print("Invalid mode.")
+            continue
+
+        # For learn/reinforce, pick a topic
+        topic = None
+        if mode in ("learn", "reinforce"):
+            topics = syllabus.get_topics(domain)
+            rec = recommender.recommend(user_id, topics)
+            print(f"\nCoach suggests: {rec['topic_name']} ({rec['reason']})")
+            print("Topics:")
+            for i, t in enumerate(topics, 1):
+                mastery = analytics.get_mastery(user_id, t["id"])
+                icon = "?" if mastery == 0 else ("X" if mastery < 40 else ("~" if mastery < 70 else "+"))
+                score_str = f"{mastery}%" if mastery > 0 else "--"
+                print(f"  {i}. [{icon}] {t['name']} {score_str}")
+            print()
+            try:
+                topic_choice = input("Select topic (number, or Enter for suggestion): ").strip()
+            except (KeyboardInterrupt, EOFError):
+                return None, None, None
+
+            if not topic_choice:
+                topic = syllabus.get_topic(rec["topic_id"])
+            else:
+                try:
+                    tidx = int(topic_choice) - 1
+                    if 0 <= tidx < len(topics):
+                        topic = topics[tidx]
+                    else:
+                        print("Invalid choice.")
+                        continue
+                except ValueError:
+                    print("Invalid choice.")
+                    continue
+
+        return domain, mode, topic
+
+
+def _show_progress(syllabus, analytics, user_id, domain):
+    """Display mastery progress for a domain."""
+    topics = syllabus.get_topics(domain)
+    name = syllabus.get_domain_name(domain)
+    print(f"\n=== {name} Progress ===")
+    total_mastery = 0
+    scored_count = 0
+    for t in topics:
+        mastery = analytics.get_mastery(user_id, t["id"])
+        icon = "?" if mastery == 0 else ("X" if mastery < 40 else ("~" if mastery < 70 else "+"))
+        score_str = f"{mastery}%" if mastery > 0 else "--"
+        print(f"  [{icon}] {t['name']:30s} {score_str}")
+        total_mastery += mastery
+        if mastery > 0:
+            scored_count += 1
+    avg = total_mastery // len(topics) if topics else 0
+    print(f"Overall: {avg}% ({scored_count}/{len(topics)} topics started)\n")
+
+
+def _run_session(coach, mem, tts, analytics, user_id, topic, mode):
+    """Run an interactive session until user quits."""
+    while True:
+        try:
+            user_input = input("You: ").strip()
+        except (KeyboardInterrupt, EOFError):
+            _end_session(coach, mem)
+            print("\nSession ended.")
+            return
+
+        if not user_input:
+            continue
+        if user_input.lower() in ("quit", "done", "exit"):
+            _end_session(coach, mem)
+            print("Session ended.")
+            return
+        if user_input.lower() == "memory":
+            ctx = mem.get_context()
+            print(f"\n{ctx}\n" if ctx else "No memory stored yet.\n")
+            continue
+
+        response = coach.respond(user_input)
+        print(f"\nCoach: {response}\n")
+        _speak(tts, response)
+
+
 def main():
     load_dotenv()
 
@@ -33,178 +294,80 @@ def main():
     elif tts_engine_name == "qwen":
         from agentcoach.voice.tts import QwenTTS
         tts = QwenTTS(lazy=True)
-    # tts_engine_name == "none" → tts stays None
+    # tts_engine_name == "none" -> tts stays None
 
     if tts:
         from agentcoach.voice.tts import AsyncTTSWrapper
         tts = AsyncTTSWrapper(tts)
 
-    # Initialize memory and load context
+    # Initialize memory
     mem = CoachMemory()
-    memory_context = mem.get_context()
 
-    # Initialize KB store
+    # Initialize syllabus, analytics, recommender
+    from agentcoach.syllabus.loader import SyllabusLoader
+    from agentcoach.analytics.store import AnalyticsStore
+    from agentcoach.analytics.recommender import Recommender
+
+    syllabus = SyllabusLoader()
+    analytics = AnalyticsStore()
+    recommender = Recommender(analytics)
+    user_id = "default"  # single user for now
+
+    # Initialize KB
     from agentcoach.kb.store import KnowledgeStore
-    kb = KnowledgeStore(use_vectors=False)  # Start with FTS only, vector optional
+    kb = KnowledgeStore(use_vectors=False)
     try:
         kb_stats = kb.get_stats()
-        if kb_stats["total_chunks"] > 0:
-            kb_active = kb
-            print(f"Knowledge Base: {kb_stats['total_chunks']} chunks loaded")
-        else:
-            kb_active = None
+        kb_active = kb if kb_stats["total_chunks"] > 0 else None
     except Exception:
         kb_active = None
 
     print("=== AgentCoach — AI Mock Interview Coach ===")
-    print(f"Provider: {provider}")
-    print(f"TTS: {tts_engine_name}")
-    print("Mode: Behavioral Interview")
-    print("Type 'quit' to exit")
-    print("Commands: 'import profile <text>', 'import jd <text>', 'load resume <file>', 'load jd <file>',")
-    print("          'load kb <dir> [category]', 'kb stats', 'kb search <query>', 'memory', 'voice on', 'voice off'")
+    print(f"Provider: {provider} | TTS: {tts_engine_name}")
+    if kb_active:
+        print(f"Knowledge Base: {kb_stats['total_chunks']} chunks")
     print()
 
-    if provider == "gemini":
-        from agentcoach.llm.gemini import GeminiAdapter
-        llm = GeminiAdapter(api_key=api_key, model=model or "gemini-2.0-flash")
-    else:
-        from agentcoach.llm.openai_compat import OpenAICompatAdapter
-        llm = OpenAICompatAdapter(api_key=api_key, provider=provider, model=model)
-    coach = Coach(llm=llm, mode="behavioral", memory_context=memory_context, kb_store=kb_active)
-
-    # Start interview
-    opening = coach.start()
-    print(f"Coach: {opening}\n")
-    _speak(tts, opening)
-
-    def _end_session(coach, mem):
-        """Generate and save feedback if there was meaningful conversation."""
-        if len(coach.history) > 2:
-            print("\nGenerating session feedback...")
-            feedback = coach.get_feedback_summary()
-            if feedback:
-                print(f"\n{feedback}\n")
-                mem.save_feedback(feedback)
-                print("Feedback saved to memory.")
-
+    # Main menu loop
     while True:
-        try:
-            user_input = input("You: ").strip()
-        except (KeyboardInterrupt, EOFError):
-            _end_session(coach, mem)
-            print("\nSession ended.")
-            break
+        domain, mode, topic = _show_menu(syllabus, analytics, recommender, user_id, mem=mem)
+        if domain is None:
+            break  # user quit
 
-        if not user_input:
-            continue
-        if user_input.lower() == "quit":
-            _end_session(coach, mem)
-            print("Session ended. Good luck with your interviews!")
-            break
+        # Create LLM
+        if provider == "gemini":
+            from agentcoach.llm.gemini import GeminiAdapter
+            llm = GeminiAdapter(api_key=api_key, model=model or "gemini-2.0-flash")
+        else:
+            from agentcoach.llm.openai_compat import OpenAICompatAdapter
+            llm = OpenAICompatAdapter(api_key=api_key, provider=provider, model=model)
 
-        if user_input.lower().startswith("import profile "):
-            text = user_input[len("import profile "):].strip()
-            mem.save_profile(text)
-            print("Profile saved to memory.")
-            continue
+        # Build mode-specific system prompt hint
+        mode_hint = ""
+        if mode == "learn" and topic:
+            resources = syllabus.get_resources(topic["id"])
+            res_text = "\n".join(f"  - [{r['type']}] {r['title']}: {r.get('url', 'N/A')}" for r in resources)
+            mode_hint = f"\nMode: Learn — Topic: {topic['name']}\nFirst show these resources, then quiz with 3-5 questions:\n{res_text}"
+        elif mode == "reinforce" and topic:
+            mastery = analytics.get_mastery(user_id, topic["id"])
+            mode_hint = f"\nMode: Reinforce — Topic: {topic['name']} (current mastery: {mastery}%)\nAsk increasingly difficult follow-up questions on this specific topic."
+        elif mode == "mock":
+            mode_hint = f"\nMode: Mock Interview — Domain: {syllabus.get_domain_name(domain)}\nConduct a full realistic interview simulation."
 
-        if user_input.lower().startswith("import jd "):
-            text = user_input[len("import jd "):].strip()
-            mem.save_jd(text)
-            print("JD saved to memory.")
-            continue
+        coach = Coach(
+            llm=llm,
+            mode=domain if mode == "mock" else "behavioral",
+            memory_context=mem.get_context() + mode_hint,
+            kb_store=kb_active,
+        )
 
-        if user_input.lower() == "memory":
-            ctx = mem.get_context()
-            if ctx:
-                print(f"\n{ctx}\n")
-            else:
-                print("No memory stored yet.\n")
-            continue
+        # Run session
+        opening = coach.start()
+        print(f"\nCoach: {opening}\n")
+        _speak(tts, opening)
 
-        if user_input.lower().startswith("load resume "):
-            filepath = user_input[len("load resume "):].strip()
-            try:
-                from agentcoach.memory.importer import import_file
-                content = import_file(filepath)
-                mem.save_profile(content)
-                print(f"Resume loaded from {filepath} and saved to memory.")
-            except FileNotFoundError as e:
-                print(f"Error: {e}")
-            continue
-
-        if user_input.lower().startswith("load jd "):
-            filepath = user_input[len("load jd "):].strip()
-            try:
-                from agentcoach.memory.importer import import_file
-                content = import_file(filepath)
-                mem.save_jd(content)
-                print(f"JD loaded from {filepath} and saved to memory.")
-            except FileNotFoundError as e:
-                print(f"Error: {e}")
-            continue
-
-        if user_input.lower().startswith("load kb "):
-            parts = user_input[len("load kb "):].strip().split(maxsplit=1)
-            dir_path = parts[0]
-            cat = parts[1] if len(parts) > 1 else "general"
-            try:
-                from agentcoach.kb.indexer import index_directory
-                from agentcoach.kb.store import KnowledgeStore
-                kb = KnowledgeStore()
-                print(f"Indexing {dir_path} (category: {cat})...")
-                stats = index_directory(dir_path, kb, category=cat)
-                print(f"Done: {stats['files_processed']} files, {stats['chunks_added']} chunks indexed.")
-                if stats['errors']:
-                    print(f"Errors: {len(stats['errors'])}")
-            except Exception as e:
-                print(f"Error: {e}")
-            continue
-
-        if user_input.lower() == "kb stats":
-            try:
-                from agentcoach.kb.store import KnowledgeStore
-                kb = KnowledgeStore()
-                stats = kb.get_stats()
-                print(f"\nKnowledge Base: {stats['total_chunks']} chunks, {stats['total_sources']} sources")
-                print(f"Categories: {', '.join(stats['categories']) if stats['categories'] else 'none'}\n")
-            except Exception as e:
-                print(f"Error: {e}")
-            continue
-
-        if user_input.lower().startswith("kb search "):
-            query = user_input[len("kb search "):].strip()
-            try:
-                from agentcoach.kb.store import KnowledgeStore
-                kb = KnowledgeStore()
-                results = kb.search(query, limit=3)
-                if results:
-                    for i, r in enumerate(results, 1):
-                        print(f"\n--- Result {i} [{r['source']} > {r['section']}] ---")
-                        print(r['content'][:300])
-                else:
-                    print("No results found.")
-                print()
-            except Exception as e:
-                print(f"Error: {e}")
-            continue
-
-        if user_input.lower() == "voice on":
-            if not tts:
-                from agentcoach.voice.tts import MacOSTTS, AsyncTTSWrapper
-                tts = AsyncTTSWrapper(MacOSTTS())
-            print("Voice enabled.")
-            continue
-
-        if user_input.lower() == "voice off":
-            tts = None
-            print("Voice disabled.")
-            continue
-
-        response = coach.respond(user_input)
-        print(f"\nCoach: {response}\n")
-        _speak(tts, response)
+        _run_session(coach, mem, tts, analytics, user_id, topic, mode)
+        print()  # blank line before returning to menu
 
 
 if __name__ == "__main__":
