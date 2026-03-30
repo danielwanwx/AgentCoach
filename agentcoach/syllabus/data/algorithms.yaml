@@ -1,0 +1,65 @@
+domain: algorithms
+name: Algorithms
+
+topics:
+  - id: algorithms.fundamentals
+    name: Fundamentals
+    children:
+      - id: algorithms.arrays_strings
+        name: Arrays & Strings
+        resources:
+          - type: video
+            title: "Arrays & Strings (NeetCode)"
+            url: "https://www.youtube.com/watch?v=DVa2szRSQ_c"
+
+      - id: algorithms.hash_maps
+        name: Hash Maps
+        resources:
+          - type: video
+            title: "Hash Tables (CS Dojo)"
+            url: "https://www.youtube.com/watch?v=shs0KM3wKv8"
+
+      - id: algorithms.binary_search
+        name: Binary Search
+        resources:
+          - type: video
+            title: "Binary Search (NeetCode)"
+            url: "https://www.youtube.com/watch?v=s4DPM8ct1pI"
+
+      - id: algorithms.two_pointers
+        name: Two Pointers
+        resources:
+          - type: video
+            title: "Two Pointers Technique (NeetCode)"
+            url: "https://www.youtube.com/watch?v=cQ1Oz4ckceM"
+
+      - id: algorithms.sliding_window
+        name: Sliding Window
+        resources:
+          - type: video
+            title: "Sliding Window (NeetCode)"
+            url: "https://www.youtube.com/watch?v=MK-NZ4hN7rs"
+
+  - id: algorithms.advanced
+    name: Advanced
+    children:
+      - id: algorithms.trees_graphs
+        name: Trees & Graphs
+        resources:
+          - type: video
+            title: "Tree Algorithms (NeetCode)"
+            url: "https://www.youtube.com/watch?v=OnSn2XEQ4MY"
+
+      - id: algorithms.dynamic_programming
+        name: Dynamic Programming
+        resources:
+          - type: video
+            title: "DP for Beginners (NeetCode)"
+            url: "https://www.youtube.com/watch?v=oBt53YbR9Kk"
+
+      - id: algorithms.backtracking
+        name: Backtracking
+        resources:
+          - type: video
+            title: "Backtracking (NeetCode)"
+            url: "https://www.youtube.com/watch?v=pfiQ_PS1g8E"

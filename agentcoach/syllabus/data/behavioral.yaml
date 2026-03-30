@@ -1,0 +1,36 @@
+domain: behavioral
+name: Behavioral Interview
+
+topics:
+  - id: behavioral.core
+    name: Core Skills
+    children:
+      - id: behavioral.star_framework
+        name: STAR Framework
+        resources:
+          - type: article
+            title: "HelloInterview: Behavioral Guide"
+            url: "https://www.hellointerview.com/learn/behavioral/overview/introduction"
+
+      - id: behavioral.leadership
+        name: Leadership & Influence
+        resources:
+          - type: article
+            title: "Amazon Leadership Principles"
+            url: "https://www.amazon.jobs/content/en/our-workplace/leadership-principles"
+
+      - id: behavioral.conflict
+        name: Conflict Resolution
+        resources: []
+
+      - id: behavioral.failure
+        name: Failure & Learning
+        resources: []
+
+      - id: behavioral.collaboration
+        name: Cross-Team Collaboration
+        resources: []
+
+      - id: behavioral.technical_decisions
+        name: Technical Decision Making
+        resources: []

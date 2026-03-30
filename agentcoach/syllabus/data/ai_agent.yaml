@@ -1,0 +1,65 @@
+domain: ai_agent
+name: AI/Agent Engineering
+
+topics:
+  - id: ai_agent.fundamentals
+    name: LLM Fundamentals
+    children:
+      - id: ai_agent.transformer
+        name: Transformer Architecture
+        resources:
+          - type: video
+            title: "Attention Is All You Need (Yannic Kilcher)"
+            url: "https://www.youtube.com/watch?v=iDulhoQ2pro"
+
+      - id: ai_agent.prompting
+        name: Prompt Engineering
+        resources:
+          - type: article
+            title: "Anthropic Prompt Engineering Guide"
+            url: "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering"
+
+      - id: ai_agent.rag
+        name: RAG (Retrieval-Augmented Generation)
+        resources:
+          - type: video
+            title: "RAG Explained (IBM)"
+            url: "https://www.youtube.com/watch?v=T-D1OfcDW1M"
+
+      - id: ai_agent.fine_tuning
+        name: Fine-Tuning
+        resources:
+          - type: video
+            title: "Fine-Tuning LLMs (Weights & Biases)"
+            url: "https://www.youtube.com/watch?v=eC6Hd1hFvos"
+
+  - id: ai_agent.agent_systems
+    name: Agent Systems
+    children:
+      - id: ai_agent.agent_architecture
+        name: Agent Architecture
+        resources:
+          - type: article
+            title: "LLM Agents (Lilian Weng)"
+            url: "https://lilianweng.github.io/posts/2023-06-23-agent/"
+
+      - id: ai_agent.tool_use
+        name: Tool Use & Function Calling
+        resources:
+          - type: article
+            title: "Anthropic Tool Use Guide"
+            url: "https://docs.anthropic.com/en/docs/build-with-claude/tool-use"
+
+      - id: ai_agent.evaluation
+        name: LLM Evaluation
+        resources:
+          - type: article
+            title: "LLM Evaluation Guide (Hamel Husain)"
+            url: "https://hamel.dev/blog/posts/evals/"
+
+      - id: ai_agent.mcp
+        name: Model Context Protocol (MCP)
+        resources:
+          - type: article
+            title: "MCP Documentation"
+            url: "https://modelcontextprotocol.io/introduction"

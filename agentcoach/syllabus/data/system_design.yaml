@@ -1,0 +1,171 @@
+domain: system_design
+name: System Design
+
+topics:
+  - id: system_design.core_concepts
+    name: Core Concepts
+    children:
+      - id: system_design.networking
+        name: Networking & Protocols
+        resources:
+          - type: video
+            title: "Computer Networking Full Course (NetworkChuck)"
+            url: "https://www.youtube.com/watch?v=IPvYjXCsTg8"
+          - type: article
+            title: "HelloInterview: Core Concepts"
+            url: "https://www.hellointerview.com/learn/system-design/in-a-hurry/core-concepts"
+
+      - id: system_design.api_design
+        name: API Design (REST, gRPC, GraphQL)
+        resources:
+          - type: video
+            title: "REST vs gRPC vs GraphQL (ByteByteGo)"
+            url: "https://www.youtube.com/watch?v=hkXzsB8D_mo"
+          - type: article
+            title: "HelloInterview: Core Concepts"
+            url: "https://www.hellointerview.com/learn/system-design/in-a-hurry/core-concepts"
+
+      - id: system_design.data_modeling
+        name: Data Modeling
+        resources:
+          - type: book
+            title: "DDIA Chapter 2 - Data Models"
+            url: null
+          - type: video
+            title: "Data Modeling for System Design (Gaurav Sen)"
+            url: "https://www.youtube.com/watch?v=1jWuFaGJEaQ"
+
+      - id: system_design.caching
+        name: Caching (Redis, Memcached)
+        resources:
+          - type: video
+            title: "Caching Strategies (ByteByteGo)"
+            url: "https://www.youtube.com/watch?v=dGAgxozNWFE"
+          - type: article
+            title: "HelloInterview: Redis Deep Dive"
+            url: "https://www.hellointerview.com/learn/system-design/deep-dives/redis"
+          - type: book
+            title: "DDIA Chapter 5 - Replication"
+            url: null
+
+      - id: system_design.sharding
+        name: Sharding & Partitioning
+        resources:
+          - type: video
+            title: "Database Sharding Explained (Gaurav Sen)"
+            url: "https://www.youtube.com/watch?v=5faMjKuB9bc"
+          - type: book
+            title: "DDIA Chapter 6 - Partitioning"
+            url: null
+
+      - id: system_design.consistent_hashing
+        name: Consistent Hashing
+        resources:
+          - type: video
+            title: "Consistent Hashing (Gaurav Sen)"
+            url: "https://www.youtube.com/watch?v=zaRkONvyGr8"
+          - type: article
+            title: "Consistent Hashing Explained"
+            url: "https://www.toptal.com/big-data/consistent-hashing"
+
+      - id: system_design.cap_theorem
+        name: CAP Theorem
+        resources:
+          - type: video
+            title: "CAP Theorem Simplified (ByteByteGo)"
+            url: "https://www.youtube.com/watch?v=BHqjEjzAicY"
+          - type: book
+            title: "DDIA Chapter 9 - Consistency and Consensus"
+            url: null
+
+      - id: system_design.db_indexing
+        name: Database Indexing
+        resources:
+          - type: video
+            title: "Database Indexing Explained (Hussein Nasser)"
+            url: "https://www.youtube.com/watch?v=-qNSXDUhTO8"
+          - type: book
+            title: "DDIA Chapter 3 - Storage and Retrieval"
+            url: null
+
+      - id: system_design.load_balancing
+        name: Load Balancing
+        resources:
+          - type: video
+            title: "Load Balancing (Gaurav Sen)"
+            url: "https://www.youtube.com/watch?v=K0Ta65OqQkY"
+          - type: article
+            title: "NGINX Load Balancing Guide"
+            url: "https://www.nginx.com/resources/glossary/load-balancing/"
+
+      - id: system_design.message_queues
+        name: Message Queues (Kafka)
+        resources:
+          - type: video
+            title: "Apache Kafka in 6 minutes (James Cutajar)"
+            url: "https://www.youtube.com/watch?v=Ch5VhJzaoaI"
+          - type: article
+            title: "HelloInterview: Kafka Deep Dive"
+            url: "https://www.hellointerview.com/learn/system-design/deep-dives/kafka"
+
+  - id: system_design.patterns
+    name: Patterns
+    children:
+      - id: system_design.rate_limiting
+        name: Rate Limiting
+        resources:
+          - type: video
+            title: "Rate Limiting (System Design)"
+            url: "https://www.youtube.com/watch?v=FU4WlwfS3G0"
+
+      - id: system_design.circuit_breaker
+        name: Circuit Breaker
+        resources:
+          - type: article
+            title: "Circuit Breaker Pattern (Martin Fowler)"
+            url: "https://martinfowler.com/bliki/CircuitBreaker.html"
+
+      - id: system_design.event_sourcing
+        name: Event Sourcing / CQRS
+        resources:
+          - type: video
+            title: "Event Sourcing Explained (CodeOpinion)"
+            url: "https://www.youtube.com/watch?v=AUj4M-st3ic"
+
+      - id: system_design.leader_election
+        name: Leader Election
+        resources:
+          - type: article
+            title: "Leader Election in Distributed Systems"
+            url: "https://www.baeldung.com/cs/leader-election"
+
+  - id: system_design.problems
+    name: Problem Breakdowns
+    children:
+      - id: system_design.url_shortener
+        name: Design URL Shortener
+        resources:
+          - type: video
+            title: "Design TinyURL (NeetCode)"
+            url: "https://www.youtube.com/watch?v=fMZMm_0ZhK4"
+
+      - id: system_design.whatsapp
+        name: Design WhatsApp
+        resources:
+          - type: video
+            title: "Design WhatsApp (Gaurav Sen)"
+            url: "https://www.youtube.com/watch?v=vvhC64hQZMk"
+
+      - id: system_design.youtube
+        name: Design YouTube
+        resources:
+          - type: video
+            title: "Design YouTube (ByteByteGo)"
+            url: "https://www.youtube.com/watch?v=jPKTo1iGQiE"
+
+      - id: system_design.uber
+        name: Design Uber
+        resources:
+          - type: video
+            title: "Design Uber (Gaurav Sen)"
+            url: "https://www.youtube.com/watch?v=umWABit-wbk"
