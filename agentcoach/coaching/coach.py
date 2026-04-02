@@ -66,7 +66,7 @@ class Coach:
         # Build messages: add strategy hint if active
         if self._current_strategy:
             msgs = list(self.history)
-            msgs.insert(-1, Message(role="system", content=f"[Teaching instruction: {self._current_strategy}]"))
+            msgs.insert(-1, Message(role="user", content=f"[Teaching instruction for coach: {self._current_strategy}]"))
             response = self.llm.generate(msgs)
         else:
             response = self.llm.generate(self.history)
