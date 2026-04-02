@@ -1,0 +1,32 @@
+name: TikTok / ByteDance
+levels:
+  2-1:
+    system_design_time: "40min"
+    coding_rounds: 2
+    behavioral_rounds: 1
+    focus_areas: ["feed systems", "recommendation", "content delivery", "real-time processing"]
+    evaluation_criteria: ["algorithm design", "system thinking", "code quality", "communication"]
+  2-2:
+    system_design_time: "45min"
+    coding_rounds: 2
+    behavioral_rounds: 1
+    focus_areas: ["distributed systems at scale", "ML infrastructure", "cross-region architecture"]
+    evaluation_criteria: ["architectural vision", "trade-off analysis", "leadership signal"]
+
+interview_style:
+  - "Coding rounds are harder than average — expect LeetCode hard problems"
+  - "System design often involves recommendation/feed/content systems"
+  - "Fast-paced interview culture — they value speed and iteration"
+  - "May include a practical design round specific to content platforms"
+  - "Behavioral is lighter than Amazon but still important"
+
+common_topics:
+  system_design: ["Design TikTok feed", "Design video upload pipeline", "Design content moderation system", "Design notification system"]
+  coding: ["dynamic programming", "graphs", "binary search", "sliding window", "design patterns"]
+  behavioral: ["Fast-paced environment", "Working with ambiguity", "Cross-cultural collaboration"]
+
+tips:
+  - "Practice LeetCode hard problems — TikTok coding rounds are above average difficulty"
+  - "Understand recommendation systems at a high level"
+  - "Be prepared for questions about handling billions of daily active users"
+  - "Show you can think about global-scale systems (multi-region, CDN, edge computing)"

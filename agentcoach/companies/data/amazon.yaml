@@ -1,0 +1,31 @@
+name: Amazon
+levels:
+  SDE2:
+    system_design_time: "35min"
+    coding_rounds: 2
+    behavioral_rounds: 2
+    focus_areas: ["scalability", "distributed systems", "API design", "data modeling"]
+    evaluation_criteria: ["ownership", "customer obsession", "dive deep", "bias for action"]
+  SDE3:
+    system_design_time: "45min"
+    coding_rounds: 2
+    behavioral_rounds: 2
+    focus_areas: ["large-scale architecture", "cross-team influence", "operational excellence"]
+    evaluation_criteria: ["think big", "earn trust", "deliver results", "strategic thinking"]
+
+interview_style:
+  - "Amazon interviews are HEAVILY behavioral — Leadership Principles drive everything"
+  - "Every answer should map to a Leadership Principle (LP)"
+  - "Use the STAR format with quantified results"
+  - "Bar raiser round: an interviewer from a different team, very rigorous"
+  - "System design: expect questions about AWS services, but don't name-drop without depth"
+
+common_topics:
+  system_design: ["Design Amazon product page", "Design order management system", "Design real-time inventory"]
+  coding: ["graphs", "dynamic programming", "string manipulation"]
+  behavioral: ["Disagreed with manager", "Owned a project end-to-end", "Dove deep to solve a problem", "Describe a failure"]
+
+tips:
+  - "Prepare 2-3 stories per Leadership Principle"
+  - "Quantify everything: 'reduced latency by 40%' not 'made it faster'"
+  - "The bar raiser can veto — take that round seriously"

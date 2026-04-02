@@ -1,0 +1,99 @@
+name: "Meta"
+levels:
+  E4:
+    system_design_time: "0min"
+    coding_rounds: 2
+    behavioral_rounds: 1
+    focus_areas:
+      - "Data structures and algorithms"
+      - "Code quality and speed"
+      - "Behavioral (Meta core values)"
+    evaluation_criteria:
+      - "Correct and optimal solutions"
+      - "Speed of implementation"
+      - "Communication during problem solving"
+      - "Alignment with Meta values (Move Fast, Be Bold, Build Social Value)"
+  E5:
+    system_design_time: "35min"
+    coding_rounds: 2
+    behavioral_rounds: 1
+    focus_areas:
+      - "Data structures and algorithms"
+      - "System design (product-oriented)"
+      - "Behavioral signals"
+    evaluation_criteria:
+      - "Clean, bug-free code under time pressure"
+      - "Product-minded system design"
+      - "Ability to solve two medium-hard problems in 35 minutes"
+      - "Impact-driven behavioral stories"
+  E6:
+    system_design_time: "45min"
+    coding_rounds: 2
+    behavioral_rounds: 1
+    focus_areas:
+      - "Complex system design at Facebook scale"
+      - "Data structures and algorithms"
+      - "Cross-team leadership and influence"
+    evaluation_criteria:
+      - "Depth in distributed system trade-offs"
+      - "Coding fluency (two hard problems expected)"
+      - "Evidence of driving large cross-functional projects"
+      - "Strong product intuition in design rounds"
+  E7:
+    system_design_time: "45min"
+    coding_rounds: 1
+    behavioral_rounds: 2
+    focus_areas:
+      - "Architecture at massive scale"
+      - "Organizational leadership"
+      - "Strategic thinking"
+    evaluation_criteria:
+      - "System design covering billions of users"
+      - "Track record of org-level impact"
+      - "Vision for technical strategy"
+
+interview_style:
+  - "Coding rounds are fast-paced: expect to solve two medium-to-hard LeetCode-style problems in a single 35-40 minute session."
+  - "Meta uses an online IDE (CoderPad) for coding interviews -- you can run your code, so correctness matters."
+  - "System design is product-focused. Interviewers want to see you think about the user experience and product requirements, not just backend infrastructure."
+  - "Behavioral rounds focus heavily on Meta's core values: Move Fast, Be Bold, Focus on Long-Term Impact, Build Social Value, Be Open, and Meta-specific 'people' signals."
+  - "The hiring manager makes the final leveling decision, unlike Google's committee-based approach."
+  - "Meta interviews are known for strict time management -- interviewers will cut you off and move on if you spend too long on one part."
+
+common_topics:
+  system_design:
+    - "Design Facebook News Feed"
+    - "Design Instagram Stories"
+    - "Design Facebook Messenger"
+    - "Design a live video streaming system"
+    - "Design a social graph"
+    - "Design a photo sharing service"
+    - "Design a notification system for 3 billion users"
+    - "Design a content moderation system"
+  coding:
+    - "Array and string manipulation"
+    - "Binary tree traversal and construction"
+    - "Graph problems (BFS/DFS)"
+    - "Dynamic programming"
+    - "Hash map-based problems"
+    - "Sliding window"
+    - "Interval problems"
+    - "Stack and queue problems"
+    - "Recursion and backtracking"
+  behavioral:
+    - "Tell me about a time you moved fast and broke things, then fixed them"
+    - "Describe a project where you had significant impact"
+    - "How did you handle a situation where you disagreed with your manager"
+    - "Tell me about a time you took a bold risk"
+    - "Describe how you built or improved a team process"
+    - "Tell me about a time you shipped something you were proud of"
+
+tips:
+  - "Speed is critical in Meta coding rounds. Practice solving two LeetCode mediums in under 35 minutes total."
+  - "Since Meta uses CoderPad, practice writing runnable code -- your solution should compile and handle edge cases when executed."
+  - "For system design, always start with the product: what is the user trying to do? Meta interviewers care about product sense alongside technical depth."
+  - "Prepare behavioral stories that specifically map to Meta's core values. Use the STAR format and quantify your impact."
+  - "Meta asks about cross-functional collaboration frequently -- prepare stories about working with PMs, designers, and data scientists."
+  - "For E5+, system design should cover data models, API design, feed ranking algorithms, and caching strategies -- Meta loves discussing caching."
+  - "Meta interviews move quickly. If you get stuck on a coding problem, state your approach and move to implementation rather than spending time on the perfect algorithm."
+  - "Practice problems from Meta's tagged questions on LeetCode -- they tend to repeat patterns like prefix sums, tree serialization, and interval merging."

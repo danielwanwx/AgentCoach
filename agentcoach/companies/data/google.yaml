@@ -1,0 +1,102 @@
+name: "Google"
+levels:
+  L4:
+    system_design_time: "0min"
+    coding_rounds: 2
+    behavioral_rounds: 1
+    focus_areas:
+      - "Data structures and algorithms"
+      - "Code correctness and edge cases"
+      - "Googleyness and leadership (GnL)"
+    evaluation_criteria:
+      - "Analytical ability"
+      - "Coding proficiency"
+      - "Communication clarity"
+      - "Googleyness (culture fit, collaboration, ambiguity tolerance)"
+  L5:
+    system_design_time: "35min"
+    coding_rounds: 2
+    behavioral_rounds: 1
+    focus_areas:
+      - "Data structures and algorithms"
+      - "System design (moderate complexity)"
+      - "Googleyness and leadership"
+    evaluation_criteria:
+      - "Coding fluency and correctness"
+      - "System design trade-off analysis"
+      - "Communication and collaboration signals"
+      - "Ability to handle ambiguity"
+  L6:
+    system_design_time: "45min"
+    coding_rounds: 2
+    behavioral_rounds: 1
+    focus_areas:
+      - "Large-scale distributed system design"
+      - "Data structures and algorithms"
+      - "Technical leadership and influence"
+      - "Googleyness and leadership"
+    evaluation_criteria:
+      - "Depth of system design reasoning"
+      - "Coding under time pressure"
+      - "Evidence of cross-team leadership"
+      - "Ability to drive projects with ambiguity"
+  L7:
+    system_design_time: "45min"
+    coding_rounds: 1
+    behavioral_rounds: 2
+    focus_areas:
+      - "System design at Google scale"
+      - "Organizational leadership"
+      - "Strategic technical vision"
+      - "Googleyness and leadership"
+    evaluation_criteria:
+      - "Architecture for billion-user systems"
+      - "Track record of leading large efforts"
+      - "Influence without authority"
+      - "Long-term technical strategy"
+
+interview_style:
+  - "Interviews are conducted by a hiring committee, not the hiring manager -- interviewers submit independent written feedback before the committee meets."
+  - "Coding interviews use Google Docs or a whiteboard (no IDE, no autocomplete). Write clean, compilable code from scratch."
+  - "System design rounds expect you to drive the conversation. Start with requirements clarification, propose a high-level architecture, then dive deep into components the interviewer probes."
+  - "Googleyness and Leadership (GnL) is a distinct evaluation axis covering collaboration, navigating ambiguity, and pushing back constructively."
+  - "Google uses a structured rubric with four axes: General Cognitive Ability, Role-Related Knowledge, Leadership, and Googleyness."
+  - "Packet review by the hiring committee means a single weak interview can be offset by strong performance elsewhere."
+
+common_topics:
+  system_design:
+    - "Design Google Search"
+    - "Design YouTube"
+    - "Design Google Maps"
+    - "Design Gmail"
+    - "Design a URL shortener"
+    - "Design a distributed file system (GFS)"
+    - "Design a web crawler"
+    - "Design a rate limiter"
+    - "Design a notification system"
+  coding:
+    - "Graph traversal (BFS/DFS)"
+    - "Dynamic programming"
+    - "Binary search and variations"
+    - "Sliding window and two pointers"
+    - "Tree and trie problems"
+    - "String manipulation"
+    - "Interval scheduling and merging"
+    - "Union-Find"
+    - "Topological sort"
+  behavioral:
+    - "Tell me about a time you had to push back on a decision"
+    - "Describe a situation where you navigated ambiguity"
+    - "How did you handle a disagreement with a teammate"
+    - "Tell me about a time you failed and what you learned"
+    - "Describe how you mentored someone"
+
+tips:
+  - "Practice coding in Google Docs or a plain text editor with no syntax highlighting or autocomplete to simulate the real environment."
+  - "For system design, always start by clarifying functional and non-functional requirements, then estimate scale (QPS, storage, bandwidth) before drawing architecture."
+  - "Google values structured thinking -- talk through your approach before writing code and explicitly state trade-offs."
+  - "Prepare 5-6 strong STAR-format stories covering collaboration, conflict resolution, leadership, and failure for the GnL round."
+  - "The hiring committee weighs all interviewer feedback equally, so perform consistently across every round."
+  - "For L5+, demonstrate that you can break down ambiguous problems into concrete subproblems without being told what to do."
+  - "Google interviews heavily test graph, tree, and dynamic programming problems -- prioritize those categories in practice."
+  - "After solving a coding problem, proactively discuss time and space complexity and suggest optimizations."
