@@ -151,7 +151,15 @@ def build_system_prompt(mode: str, memory_context: str = "", kb_context: str = "
     if kb_teaching_content:
         parts.append(LEARN_KB_SECTION.format(kb_content=kb_teaching_content))
     if memory_context:
-        parts.append(f"## What You Know About This Candidate\n\n{memory_context}")
+        # Add instruction to actually USE learning history
+        learning_instruction = ""
+        if "Learning History" in memory_context:
+            learning_instruction = (
+                "\n\nIMPORTANT: Review the Learning History below. "
+                "Focus on the user's WEAK AREAS — don't re-teach what they've already mastered. "
+                "If they had misconceptions before, address those early."
+            )
+        parts.append(f"## What You Know About This Candidate{learning_instruction}\n\n{memory_context}")
     if kb_context:
         parts.append(f"## Relevant Knowledge Base\n\nUse this knowledge to ask better questions and evaluate answers:\n\n{kb_context}")
     if quiz_state_context:

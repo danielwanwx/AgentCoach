@@ -39,24 +39,7 @@ COMPRESSION_PROMPT = """Summarize this tutoring conversation. Wrap your thinking
 
 HISTORY_MAX = 12  # compress when history exceeds this many messages
 
-# Pattern to detect Coach entering quiz mode
-_QUIZ_START_PATTERNS = re.compile(
-    r"\bquiz\b|\bquestion\s*[1-9#]|\blet.s test\b|\btest your\b|\bready.*quiz\b|\bstart.*quiz\b",
-    re.IGNORECASE,
-)
-
-# Patterns indicating correct/incorrect answers in coach responses
-# Match correct/incorrect even through markdown formatting (**correct**, ✓, ✗)
-_CORRECT_PATTERNS = re.compile(
-    r"\*{0,2}correct\*{0,2}|✓|\bexactly\b|\bgreat answer\b|\bwell done\b|\bspot on\b|\bnailed it\b|\bthat.s right\b",
-    re.IGNORECASE,
-)
-_INCORRECT_PATTERNS = re.compile(
-    r"\*{0,2}incorrect\*{0,2}|✗|\bnot quite\b|\bwrong\b|\bnot exactly\b"
-    r"|\bmissed\b|\bactually\b.*\bshould\b|\bslightly off\b|\bclose but\b"
-    r"|\bnot quite right\b|\boff on\b|\bmixed.{0,15}up\b",
-    re.IGNORECASE,
-)
+# Pattern constants moved to agentcoach/coaching/quiz_evaluator.py
 
 
 @dataclass
@@ -105,12 +88,46 @@ class Coach:
         # Search KB for relevant context
         if self.kb_store:
             self._update_kb_context(user_input)
-        response = self.llm.generate(self.history)
+        # Select and inject teaching strategy for learn/reinforce modes
+        self._current_strategy = None
+        if self.mode in ("learn", "reinforce"):
+            self._inject_strategy(user_input)
+        # Build messages: add strategy hint if active
+        if self._current_strategy:
+            msgs = list(self.history)
+            msgs.insert(-1, Message(role="system", content=f"[Teaching instruction: {self._current_strategy}]"))
+            response = self.llm.generate(msgs)
+        else:
+            response = self.llm.generate(self.history)
         self.history.append(Message(role="assistant", content=response))
         # Track quiz state and update system prompt with difficulty hint
         if self.mode in ("learn", "reinforce"):
             self._update_quiz_state(user_input, response)
         return response
+
+    def _inject_strategy(self, user_input: str):
+        """Select teaching strategy and inject into system prompt."""
+        try:
+            from agentcoach.coaching.strategies import (
+                select_strategy, get_strategy_prompt, detect_confusion,
+            )
+            qs = self.quiz_state
+            confused = detect_confusion(user_input)
+            strategy = select_strategy(
+                mode=self.mode,
+                topic_mastery=0.0,  # TODO: get from analytics
+                consecutive_wrong=qs.incorrect_count - qs.correct_count if qs.incorrect_count > qs.correct_count else 0,
+                consecutive_right=qs._consecutive_correct,
+                turn_number=len(self.history) // 2,
+                user_said_confused=confused,
+            )
+            strategy_prompt = get_strategy_prompt(strategy)
+            # Inject as a transient instruction (not stored in system prompt permanently)
+            # We add it as a system message right before the LLM call
+            # The system prompt at history[0] stays unchanged
+            self._current_strategy = strategy_prompt
+        except Exception:
+            self._current_strategy = None
 
     def _compress_history(self):
         """Compress older conversation history when it exceeds HISTORY_MAX.
@@ -161,24 +178,30 @@ class Coach:
     def _update_quiz_state(self, user_input: str, response: str):
         """Detect correct/incorrect answers and adjust quiz difficulty.
 
-        Only tracks answers after the coach has entered quiz mode (detected by
-        patterns like "quiz", "question 1", "let's test").
+        Uses the quiz evaluator module for answer assessment. Falls back to
+        pattern matching if the evaluator module is not available.
         """
+        from agentcoach.coaching.quiz_evaluator import (
+            evaluate_answer_with_patterns, detect_quiz_start,
+        )
         qs = self.quiz_state
 
         # Check if coach is starting a quiz in this response
-        if not qs._quiz_active and _QUIZ_START_PATTERNS.search(response):
+        if not qs._quiz_active and detect_quiz_start(response):
             qs._quiz_active = True
-            return  # This response introduces the quiz, no scoring yet
+            return
 
         # Don't track during teaching phase
         if not qs._quiz_active:
             return
 
-        # Check only the first 200 chars for the verdict — LLMs typically lead with it
-        head = response[:200]
-        is_correct = bool(_CORRECT_PATTERNS.search(head))
-        is_incorrect = bool(_INCORRECT_PATTERNS.search(head))
+        # Evaluate the answer using pattern matching (fast, no extra LLM call)
+        evaluation = evaluate_answer_with_patterns(response)
+        if evaluation is None:
+            return  # Can't determine — skip
+
+        is_correct = evaluation["is_correct"]
+        is_incorrect = not is_correct
 
         if is_correct and not is_incorrect:
             qs.question_count += 1
@@ -193,7 +216,8 @@ class Coach:
             qs._consecutive_correct = 0
             if qs.difficulty > 1:
                 qs.difficulty -= 1
-            # Extract weak concept hint from response (first sentence after "incorrect"/"actually")
+            # Extract weak concept hint from first sentence of feedback
+            from agentcoach.coaching.quiz_evaluator import _INCORRECT_PATTERNS
             for line in response.split("."):
                 if _INCORRECT_PATTERNS.search(line):
                     concept = line.strip()[:80]
