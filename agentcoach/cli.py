@@ -50,7 +50,7 @@ def _show_menu(syllabus, analytics, recommender, user_id, mem=None):
             scored_count = len(progress)
             print(f"  {i}. {name} ({scored_count}/{len(topics)} topics started)")
         print()
-        print("Commands: 'progress <domain>', 'recommend', 'quit'")
+        print("Commands: 'progress <domain>', 'recommend', 'plan', 'quit'")
         print("Data:     'import profile <text>', 'import jd <text>', 'load resume <file>',")
         print("          'load jd <file>', 'load kb <dir> [category]', 'kb stats', 'kb search <query>'")
         print()
@@ -75,6 +75,19 @@ def _show_menu(syllabus, analytics, recommender, user_id, mem=None):
             rec = recommender.recommend(user_id, all_topics, syllabus=syllabus)
             print(f"\nCoach recommends: {rec['mode'].upper()} — {rec['topic_name']}")
             print(f"Reason: {rec['reason']}\n")
+            continue
+
+        if choice_lower == "plan":
+            try:
+                from agentcoach.planner import generate_study_plan, format_plan
+                all_topics = []
+                for d in domains:
+                    all_topics.extend([t for t in syllabus.get_topics(d) if t.get("resources")])
+                mastery_data = {t["id"]: analytics.get_mastery(user_id, t["id"]) for t in all_topics}
+                plan = generate_study_plan(all_topics, mastery_data, days_until_interview=14)
+                print(f"\n{format_plan(plan, days_to_show=7)}\n")
+            except Exception as e:
+                print(f"(Plan error: {e})")
             continue
 
         if choice_lower.startswith("progress"):
@@ -391,13 +404,10 @@ def main():
         if domain is None:
             break  # user quit
 
-        # Create LLM
-        if provider == "gemini":
-            from agentcoach.llm.gemini import GeminiAdapter
-            llm = GeminiAdapter(api_key=api_key, model=model or "gemini-2.0-flash")
-        else:
-            from agentcoach.llm.openai_compat import OpenAICompatAdapter
-            llm = OpenAICompatAdapter(api_key=api_key, provider=provider, model=model)
+        # Create LLM via router (uses task-specific providers if API keys available)
+        from agentcoach.llm.router import LLMRouter
+        router = LLMRouter.from_env()
+        llm = router.get("coaching")
 
         # Build mode-specific system prompt hint
         mode_hint = ""
@@ -428,10 +438,38 @@ def main():
         else:
             prompt_mode = "behavioral"
 
+        # Build memory context with user profile + company info
+        memory_ctx = mem.get_context() + mode_hint
+        try:
+            from agentcoach.user import UserProfileStore
+            user_store = UserProfileStore()
+            profile_ctx = user_store.format_for_prompt(user_id)
+            if profile_ctx:
+                memory_ctx += f"\n\n### User Profile\n{profile_ctx}"
+        except Exception:
+            pass
+
+        # Inject company profile for mock mode
+        if mode == "mock":
+            try:
+                from agentcoach.companies import format_company_for_prompt
+                # Try to detect target company from user profile
+                company_ctx = ""
+                try:
+                    profile = user_store.load(user_id) if 'user_store' in dir() else None
+                    if profile and profile.target_companies:
+                        company_ctx = format_company_for_prompt(profile.target_companies[0])
+                except Exception:
+                    pass
+                if company_ctx:
+                    memory_ctx += f"\n\n{company_ctx}"
+            except Exception:
+                pass
+
         coach = Coach(
             llm=llm,
             mode=prompt_mode,
-            memory_context=mem.get_context() + mode_hint,
+            memory_context=memory_ctx,
             kb_store=kb_active,
             topic_id=topic["id"] if topic else "",
             topic_name=topic["name"] if topic else "",
