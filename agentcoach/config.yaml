@@ -1,0 +1,39 @@
+# AgentCoach Configuration
+
+llm:
+  default_provider: minimax
+  # Task-specific routing (uses default if key not available):
+  # coaching: anthropic/claude-sonnet    # requires ANTHROPIC_API_KEY
+  # scoring: openai/gpt-4o              # requires OPENAI_API_KEY
+  # quiz_eval: openai/gpt-4o-mini
+  # compression: google/gemini-flash    # requires GEMINI_API_KEY
+
+kb:
+  search_top_k: 5
+  source_weights:
+    core-concepts: 1.5
+    problem-breakdowns: 1.3
+    deep-dives: 1.2
+    patterns: 1.2
+    blog: 0.8
+    podcast: 0.4
+    youtube: 0.5
+
+scoring:
+  mastery_gain:
+    learn: 0.15
+    reinforce: 0.20
+    mock: 0.25
+  max_gain_per_session: 25
+
+session:
+  compress_at_messages: 12
+  teaching_strategy: auto   # auto, direct, socratic, analogy, scaffolding
+
+mastery:
+  half_life_days: 30
+  mode_weights:
+    mock: 1.5
+    reinforce: 1.0
+    learn: 0.7
+    quiz: 1.0
