@@ -1,1 +1,1 @@
-"""Coaching module — teaching strategies, quiz evaluation, context building."""
+"""Coaching module -- teaching strategies, quiz evaluation, context building."""

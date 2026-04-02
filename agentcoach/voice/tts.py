@@ -42,7 +42,7 @@ class QwenTTS(TTSEngine):
                 self.model_name, device_map=self.device
             )
         except ImportError:
-            print("Warning: qwen-tts not installed. Run: pip install qwen-tts")
+            print("Warning: qwen-tts not installed. Run: pip install qwen-tts")  # UI output
             raise
 
     def speak(self, text: str) -> None:
