@@ -134,8 +134,10 @@ class KnowledgeStore:
         conn.close()
 
     def search(self, query: str, limit: int = 5, category: str = "") -> list:
-        """Hybrid search: FTS5 + vector (if available), ranked by RRF + priority boost."""
-        fts_results = self._search_fts(query, limit=limit * 2, category=category)
+        """Hybrid search: FTS5 + vector (if available), ranked by RRF + priority/source boost."""
+        # Fetch more candidates for reranking (10x for large KB)
+        candidate_count = max(limit * 5, 25)
+        fts_results = self._search_fts(query, limit=candidate_count, category=category)
 
         if not self.use_vectors or not self.embedder:
             results = fts_results[:limit]
@@ -151,8 +153,28 @@ class KnowledgeStore:
 
         return results[:limit]
 
+    # Source type weights: articles are denser than podcast transcripts
+    SOURCE_WEIGHTS = {
+        "core-concepts": 1.5,   # highest value: fundamental definitions
+        "problem-breakdowns": 1.3,  # high value: worked examples
+        "deep-dives": 1.2,
+        "patterns": 1.2,
+        "in-a-hurry": 1.1,
+        "course": 1.0,
+        "blog": 0.8,
+        "lenny_pod": 0.4,      # podcast transcripts: verbose, low density
+        "youtube": 0.5,         # video transcripts: better than podcast but still noisy
+    }
+
+    def _get_source_weight(self, source: str) -> float:
+        """Get weight multiplier for a source based on content type."""
+        for prefix, weight in self.SOURCE_WEIGHTS.items():
+            if source.startswith(prefix) or prefix in source:
+                return weight
+        return 0.7  # default for unknown sources
+
     def _boost_by_priority(self, results: list) -> list:
-        """Re-rank results by priority: P0 > P1 > P2, with access frequency as tiebreaker."""
+        """Re-rank results by priority, source quality, and access frequency."""
         if not results:
             return results
         conn = sqlite3.connect(self.db_path)
@@ -161,16 +183,20 @@ class KnowledgeStore:
                 r["_boost"] = 0
                 continue
             row = conn.execute(
-                "SELECT priority, access_count FROM chunks WHERE id = ?", (r["id"],)
+                "SELECT priority, access_count, source FROM chunks WHERE id = ?", (r["id"],)
             ).fetchone()
             if row:
-                priority, access_count = row
-                # Lower priority number = more important. Boost = (3 - priority) * 0.3 + log(access+1) * 0.1
-                r["_boost"] = (3 - (priority or 2)) * 0.3 + math.log1p(access_count or 0) * 0.1
+                priority, access_count, source = row
+                # Priority boost: P0=0.9, P1=0.6, P2=0.3
+                priority_score = (3 - (priority or 2)) * 0.3
+                # Source quality: articles > podcasts
+                source_weight = self._get_source_weight(source or "")
+                # Access frequency: popular content gets a small bump
+                access_score = math.log1p(access_count or 0) * 0.05
+                r["_boost"] = priority_score * source_weight + access_score
             else:
                 r["_boost"] = 0
         conn.close()
-        # Sort by boost descending (stable sort preserves original rank for equal boosts)
         results.sort(key=lambda x: x.get("_boost", 0), reverse=True)
         return results
 
