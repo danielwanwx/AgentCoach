@@ -4,30 +4,35 @@ import re
 from agentcoach.llm.base import LLMAdapter, Message
 
 
-SCORE_PROMPT = """Analyze this interview/quiz session and score the candidate's performance on each topic discussed.
+SCORE_PROMPT = """Evaluate this {mode} session on topic "{topic_id}".
 
-Session mode: {mode}
-Primary topic: {topic_id}
+{rubric_section}
 
-Return a JSON array with scores. Each entry:
-- topic_id: the specific topic (e.g., "system_design.caching")
-- score_delta: integer from -20 to +25 representing performance change
-  - Quiz/Learn: -10 to +15 (lower stakes)
-  - Reinforce: -15 to +20 (medium stakes)
-  - Mock: -20 to +25 (high stakes)
-- evidence: one sentence explaining the score
+Return a single JSON object (not an array):
+{{
+  "topic_id": "{topic_id}",
+  "overall_score": <float 1.0-5.0>,
+  "dimensions": [
+    {{"name": "<dimension>", "score": <int 1-5>, "evidence": "<one sentence>"}}
+  ],
+  "strengths": ["<strength1>"],
+  "areas_to_improve": ["<area1>"]
+}}
 
 Rules:
-- Only score topics that were actually discussed
-- Be fair but rigorous
-- If candidate showed strong understanding: positive score
-- If candidate was wrong or confused: negative score
-- If partially correct: small positive score
-- IMPORTANT: Use ONLY the primary topic_id "{topic_id}" for scoring. Do NOT invent sub-topic IDs. Combine all scores into a single entry for the primary topic.
-
-Return ONLY the JSON array, no other text. Example:
-[{{"topic_id": "{topic_id}", "score_delta": 15, "evidence": "Correctly explained cache invalidation strategies"}}]
+- Score each dimension 1-5 using the rubric above
+- overall_score = weighted average of dimensions
+- Be fair but rigorous. Cite specific moments from the conversation.
+- Return ONLY the JSON object, no other text.
 {kb_reference_section}"""
+
+# Mastery gain multipliers per mode (adjusted for better user progression)
+MASTERY_GAIN = {
+    "learn": 0.15,      # 15% of score → mastery
+    "reinforce": 0.20,  # 20%
+    "mock": 0.25,       # 25% (hardest mode, should reward most)
+}
+MAX_MASTERY_GAIN_PER_SESSION = 25  # cap at 25% per session
 
 KB_REFERENCE_SECTION = """
 ## Reference Material (ground truth)
@@ -47,30 +52,91 @@ class Scorer:
         if len(history) < 3:
             return []
 
+        # Get rubric for this domain
+        domain = topic_id.split(".")[0] if topic_id else "system_design"
+        try:
+            from agentcoach.scoring.rubrics import format_rubric_for_prompt
+            rubric_text = format_rubric_for_prompt(domain)
+        except Exception:
+            rubric_text = ""
+
         # Optionally include KB ground truth for answer validation
         kb_ref = ""
         if self.kb_store and topic_id:
             try:
-                results = self.kb_store.search(topic_id, limit=3)
+                results = self.kb_store.search(topic_id, limit=3, category=domain)
                 if results:
-                    excerpts = "\n".join(
-                        f"- {r['content'][:400]}" for r in results
-                    )
+                    excerpts = "\n".join(f"- {r['content'][:400]}" for r in results)
                     kb_ref = KB_REFERENCE_SECTION.format(kb_excerpts=excerpts)
             except Exception:
                 pass
 
         prompt = SCORE_PROMPT.format(
             mode=mode, topic_id=topic_id or "general",
+            rubric_section=rubric_text,
             kb_reference_section=kb_ref,
         )
         messages = list(history) + [Message(role="user", content=prompt)]
 
         try:
             response = self.llm.generate(messages)
-            return self._parse_scores(response, fallback_topic_id=topic_id)
+            return self._parse_structured_score(response, mode, topic_id)
         except Exception:
-            return []
+            # Fallback to legacy parsing
+            try:
+                return self._parse_scores(response, fallback_topic_id=topic_id)
+            except Exception:
+                return []
+
+    def _parse_structured_score(self, text: str, mode: str, topic_id: str) -> list:
+        """Parse structured JSON score and compute mastery delta."""
+        try:
+            # Check if response is legacy array format [{"score_delta": ...}]
+            array_match = re.search(r'\[[\s\S]*\]', text)
+            if array_match and '"score_delta"' in text and '"overall_score"' not in text:
+                return self._parse_scores(text, fallback_topic_id=topic_id)
+
+            match = re.search(r'\{[\s\S]*\}', text)
+            if not match:
+                return self._parse_scores(text, fallback_topic_id=topic_id)
+
+            data = json.loads(match.group())
+
+            # Extract overall score (1-5 scale)
+            overall = float(data.get("overall_score", 3.0))
+
+            # Compute mastery delta from overall score and mode
+            gain_rate = MASTERY_GAIN.get(mode, 0.15)
+            # Score 3.0 = neutral, 5.0 = max gain, 1.0 = negative
+            raw_delta = (overall - 2.0) * gain_rate * 20  # maps 1-5 → -20 to +60 before cap
+            score_delta = int(max(-20, min(MAX_MASTERY_GAIN_PER_SESSION / gain_rate, raw_delta)))
+
+            # Build evidence from dimensions
+            dims = data.get("dimensions", [])
+            strengths = data.get("strengths", [])
+            areas = data.get("areas_to_improve", [])
+            evidence_parts = []
+            if dims:
+                evidence_parts.append("; ".join(f"{d['name']}={d.get('score','?')}" for d in dims[:4]))
+            if strengths:
+                evidence_parts.append(f"Strengths: {', '.join(strengths[:2])}")
+            if areas:
+                evidence_parts.append(f"Improve: {', '.join(areas[:2])}")
+            evidence = ". ".join(evidence_parts)[:200]
+
+            normalized_id = self._normalize_topic_id(
+                data.get("topic_id", topic_id), fallback_topic_id=topic_id
+            )
+
+            return [{
+                "topic_id": normalized_id,
+                "score_delta": score_delta,
+                "overall_score": overall,
+                "evidence": evidence,
+                "dimensions": dims,
+            }]
+        except (json.JSONDecodeError, ValueError, KeyError):
+            return self._parse_scores(text, fallback_topic_id=topic_id)
 
     def _parse_scores(self, text: str, fallback_topic_id: str = "") -> list:
         try:
