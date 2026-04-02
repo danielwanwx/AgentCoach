@@ -7,6 +7,8 @@ topics:
     children:
       - id: ai_agent.transformer
         name: Transformer Architecture
+        difficulty_level: 1
+        prerequisites: []
         resources:
           - type: video
             title: "Attention Is All You Need (Yannic Kilcher)"
@@ -14,6 +16,8 @@ topics:
 
       - id: ai_agent.prompting
         name: Prompt Engineering
+        difficulty_level: 1
+        prerequisites: [ai_agent.transformer]
         resources:
           - type: article
             title: "Anthropic Prompt Engineering Guide"
@@ -21,6 +25,8 @@ topics:
 
       - id: ai_agent.rag
         name: RAG (Retrieval-Augmented Generation)
+        difficulty_level: 2
+        prerequisites: [ai_agent.transformer, ai_agent.prompting]
         resources:
           - type: video
             title: "RAG Explained (IBM)"
@@ -28,6 +34,8 @@ topics:
 
       - id: ai_agent.fine_tuning
         name: Fine-Tuning
+        difficulty_level: 2
+        prerequisites: [ai_agent.transformer]
         resources:
           - type: video
             title: "Fine-Tuning LLMs (Weights & Biases)"
@@ -38,6 +46,8 @@ topics:
     children:
       - id: ai_agent.agent_architecture
         name: Agent Architecture
+        difficulty_level: 2
+        prerequisites: [ai_agent.prompting]
         resources:
           - type: article
             title: "LLM Agents (Lilian Weng)"
@@ -45,6 +55,8 @@ topics:
 
       - id: ai_agent.tool_use
         name: Tool Use & Function Calling
+        difficulty_level: 2
+        prerequisites: [ai_agent.agent_architecture]
         resources:
           - type: article
             title: "Anthropic Tool Use Guide"
@@ -52,6 +64,8 @@ topics:
 
       - id: ai_agent.evaluation
         name: LLM Evaluation
+        difficulty_level: 3
+        prerequisites: [ai_agent.rag, ai_agent.agent_architecture]
         resources:
           - type: article
             title: "LLM Evaluation Guide (Hamel Husain)"
@@ -59,6 +73,8 @@ topics:
 
       - id: ai_agent.mcp
         name: Model Context Protocol (MCP)
+        difficulty_level: 3
+        prerequisites: [ai_agent.tool_use]
         resources:
           - type: article
             title: "MCP Documentation"

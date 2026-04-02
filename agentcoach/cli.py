@@ -14,7 +14,7 @@ def _speak(tts, text: str):
 
 
 def _end_session(coach, mem):
-    """Generate and save feedback if there was meaningful conversation."""
+    """Generate and save feedback and learning state if there was meaningful conversation."""
     if len(coach.history) > 2:
         print("\nGenerating session feedback...")
         feedback = coach.get_feedback_summary()
@@ -22,6 +22,18 @@ def _end_session(coach, mem):
             print(f"\n{feedback}\n")
             mem.save_feedback(feedback)
             print("Feedback saved to memory.")
+        # Save learning state for cross-session continuity
+        qs = coach.quiz_state
+        if qs.question_count > 0:
+            weak = "; ".join(qs.weak_concepts[-5:]) if qs.weak_concepts else "none"
+            learning_entry = (
+                f"Topic: {coach.topic_name or 'general'} ({coach.topic_id}) | "
+                f"Difficulty reached: {qs.difficulty} | "
+                f"Score: {qs.correct_count}/{qs.question_count} | "
+                f"Weak areas: {weak}"
+            )
+            mem.save_learning(learning_entry)
+            print("Learning state saved.")
 
 
 def _show_menu(syllabus, analytics, recommender, user_id, mem=None):
@@ -60,7 +72,7 @@ def _show_menu(syllabus, analytics, recommender, user_id, mem=None):
             if not all_topics:
                 print("No topics found in syllabus.\n")
                 continue
-            rec = recommender.recommend(user_id, all_topics)
+            rec = recommender.recommend(user_id, all_topics, syllabus=syllabus)
             print(f"\nCoach recommends: {rec['mode'].upper()} — {rec['topic_name']}")
             print(f"Reason: {rec['reason']}\n")
             continue
@@ -198,7 +210,7 @@ def _show_menu(syllabus, analytics, recommender, user_id, mem=None):
         topic = None
         if mode in ("learn", "reinforce"):
             topics = syllabus.get_topics(domain)
-            rec = recommender.recommend(user_id, topics)
+            rec = recommender.recommend(user_id, topics, syllabus=syllabus)
             print(f"\nCoach suggests: {rec['topic_name']} ({rec['reason']})")
             print("Topics:")
             for i, t in enumerate(topics, 1):
@@ -248,13 +260,14 @@ def _show_progress(syllabus, analytics, user_id, domain):
     print(f"Overall: {avg}% ({scored_count}/{len(topics)} topics started)\n")
 
 
-def _score_and_save(coach, analytics, user_id, topic, mode, llm):
-    """Score the session and save results if there was enough conversation."""
+def _score_and_save(coach, analytics, user_id, topic, mode, llm, kb_store=None, syllabus=None, mem=None):
+    """Score the session, save results and transcript."""
     if len(coach.history) > 4:
+        scores = []
         try:
             from agentcoach.analytics.scorer import Scorer
             print("Analyzing session performance...")
-            scorer = Scorer(llm)
+            scorer = Scorer(llm, kb_store=kb_store, syllabus=syllabus)
             topic_id = topic["id"] if topic else ""
             scores = scorer.score_session(coach.history, mode=mode, topic_id=topic_id)
             if scores:
@@ -266,16 +279,30 @@ def _score_and_save(coach, analytics, user_id, topic, mode, llm):
                 print()
         except Exception as e:
             print(f"(Scoring error: {e})")
+        # Save complete session transcript for review
+        if mem:
+            try:
+                mem.save_transcript(
+                    user_id=user_id,
+                    topic_id=topic["id"] if topic else "",
+                    topic_name=topic["name"] if topic else "general",
+                    mode=mode,
+                    history=coach.history,
+                    scores=scores,
+                )
+                print("Session transcript saved.")
+            except Exception as e:
+                print(f"(Transcript save error: {e})")
 
 
-def _run_session(coach, mem, tts, analytics, user_id, topic, mode, llm):
+def _run_session(coach, mem, tts, analytics, user_id, topic, mode, llm, kb_store=None, syllabus=None):
     """Run an interactive session until user quits."""
     while True:
         try:
             user_input = input("You: ").strip()
         except (KeyboardInterrupt, EOFError):
             _end_session(coach, mem)
-            _score_and_save(coach, analytics, user_id, topic, mode, llm)
+            _score_and_save(coach, analytics, user_id, topic, mode, llm, kb_store=kb_store, syllabus=syllabus, mem=mem)
             print("\nSession ended.")
             return
 
@@ -283,7 +310,7 @@ def _run_session(coach, mem, tts, analytics, user_id, topic, mode, llm):
             continue
         if user_input.lower() in ("quit", "done", "exit"):
             _end_session(coach, mem)
-            _score_and_save(coach, analytics, user_id, topic, mode, llm)
+            _score_and_save(coach, analytics, user_id, topic, mode, llm, kb_store=kb_store, syllabus=syllabus, mem=mem)
             print("Session ended.")
             return
         if user_input.lower() == "memory":
@@ -308,7 +335,7 @@ def main():
         sys.exit(1)
 
     # Initialize TTS
-    tts_engine_name = os.getenv("TTS_ENGINE", "macos")  # macos, qwen, none
+    tts_engine_name = os.getenv("TTS_ENGINE", "macos")  # macos, qwen, vibevoice, none
     tts = None
     if tts_engine_name == "macos":
         from agentcoach.voice.tts import MacOSTTS
@@ -316,6 +343,14 @@ def main():
     elif tts_engine_name == "qwen":
         from agentcoach.voice.tts import QwenTTS
         tts = QwenTTS(lazy=True)
+    elif tts_engine_name == "vibevoice":
+        from agentcoach.voice.tts import VibeVoiceTTS
+        tts = VibeVoiceTTS(
+            device=os.getenv("TTS_DEVICE", "mps"),
+            inference_steps=int(os.getenv("TTS_INFERENCE_STEPS", "15")),
+            voice_sample=os.getenv("TTS_VOICE_SAMPLE"),
+            lazy=True,
+        )
     # tts_engine_name == "none" -> tts stays None
 
     if tts:
@@ -366,10 +401,19 @@ def main():
 
         # Build mode-specific system prompt hint
         mode_hint = ""
+        kb_teaching_text = ""
         if mode == "learn" and topic:
             resources = syllabus.get_resources(topic["id"])
             res_text = "\n".join(f"  - [{r['type']}] {r['title']}: {r.get('url', 'N/A')}" for r in resources)
-            mode_hint = f"\nMode: Learn — Topic: {topic['name']}\nFirst show these resources, then quiz with 3-5 questions:\n{res_text}"
+            mode_hint = f"\nMode: Learn — Topic: {topic['name']}\nAfter teaching, show these resources for deeper study:\n{res_text}"
+            # Pre-fetch KB content for teaching
+            if kb_active:
+                try:
+                    kb_results = kb_active.search(topic["name"], limit=5)
+                    if kb_results:
+                        kb_teaching_text = "\n\n".join(r["content"][:800] for r in kb_results)
+                except Exception:
+                    pass
         elif mode == "reinforce" and topic:
             mastery = analytics.get_mastery(user_id, topic["id"])
             mode_hint = f"\nMode: Reinforce — Topic: {topic['name']} (current mastery: {mastery}%)\nAsk increasingly difficult follow-up questions on this specific topic."
@@ -389,6 +433,9 @@ def main():
             mode=prompt_mode,
             memory_context=mem.get_context() + mode_hint,
             kb_store=kb_active,
+            topic_id=topic["id"] if topic else "",
+            topic_name=topic["name"] if topic else "",
+            kb_teaching_context=kb_teaching_text,
         )
 
         # Run session
@@ -396,7 +443,7 @@ def main():
         print(f"\nCoach: {opening}\n")
         _speak(tts, opening)
 
-        _run_session(coach, mem, tts, analytics, user_id, topic, mode, llm)
+        _run_session(coach, mem, tts, analytics, user_id, topic, mode, llm, kb_store=kb_active, syllabus=syllabus)
         print()  # blank line before returning to menu
 
 

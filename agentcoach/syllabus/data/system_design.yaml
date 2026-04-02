@@ -7,6 +7,8 @@ topics:
     children:
       - id: system_design.networking
         name: Networking & Protocols
+        difficulty_level: 1
+        prerequisites: []
         resources:
           - type: video
             title: "Computer Networking Full Course (NetworkChuck)"
@@ -17,6 +19,8 @@ topics:
 
       - id: system_design.api_design
         name: API Design (REST, gRPC, GraphQL)
+        difficulty_level: 1
+        prerequisites: [system_design.networking]
         resources:
           - type: video
             title: "REST vs gRPC vs GraphQL (ByteByteGo)"
@@ -27,6 +31,8 @@ topics:
 
       - id: system_design.data_modeling
         name: Data Modeling
+        difficulty_level: 1
+        prerequisites: []
         resources:
           - type: book
             title: "DDIA Chapter 2 - Data Models"
@@ -37,6 +43,8 @@ topics:
 
       - id: system_design.caching
         name: Caching (Redis, Memcached)
+        difficulty_level: 2
+        prerequisites: [system_design.data_modeling]
         resources:
           - type: video
             title: "Caching Strategies (ByteByteGo)"
@@ -50,6 +58,8 @@ topics:
 
       - id: system_design.sharding
         name: Sharding & Partitioning
+        difficulty_level: 2
+        prerequisites: [system_design.data_modeling, system_design.db_indexing]
         resources:
           - type: video
             title: "Database Sharding Explained (Gaurav Sen)"
@@ -60,6 +70,8 @@ topics:
 
       - id: system_design.consistent_hashing
         name: Consistent Hashing
+        difficulty_level: 2
+        prerequisites: [system_design.sharding]
         resources:
           - type: video
             title: "Consistent Hashing (Gaurav Sen)"
@@ -70,6 +82,8 @@ topics:
 
       - id: system_design.cap_theorem
         name: CAP Theorem
+        difficulty_level: 2
+        prerequisites: [system_design.networking]
         resources:
           - type: video
             title: "CAP Theorem Simplified (ByteByteGo)"
@@ -80,6 +94,8 @@ topics:
 
       - id: system_design.db_indexing
         name: Database Indexing
+        difficulty_level: 1
+        prerequisites: [system_design.data_modeling]
         resources:
           - type: video
             title: "Database Indexing Explained (Hussein Nasser)"
@@ -90,6 +106,8 @@ topics:
 
       - id: system_design.load_balancing
         name: Load Balancing
+        difficulty_level: 2
+        prerequisites: [system_design.networking]
         resources:
           - type: video
             title: "Load Balancing (Gaurav Sen)"
@@ -100,6 +118,8 @@ topics:
 
       - id: system_design.message_queues
         name: Message Queues (Kafka)
+        difficulty_level: 2
+        prerequisites: [system_design.networking]
         resources:
           - type: video
             title: "Apache Kafka in 6 minutes (James Cutajar)"
@@ -113,6 +133,8 @@ topics:
     children:
       - id: system_design.rate_limiting
         name: Rate Limiting
+        difficulty_level: 2
+        prerequisites: [system_design.api_design]
         resources:
           - type: video
             title: "Rate Limiting (System Design)"
@@ -120,6 +142,8 @@ topics:
 
       - id: system_design.circuit_breaker
         name: Circuit Breaker
+        difficulty_level: 2
+        prerequisites: [system_design.api_design]
         resources:
           - type: article
             title: "Circuit Breaker Pattern (Martin Fowler)"
@@ -127,6 +151,8 @@ topics:
 
       - id: system_design.event_sourcing
         name: Event Sourcing / CQRS
+        difficulty_level: 3
+        prerequisites: [system_design.message_queues, system_design.data_modeling]
         resources:
           - type: video
             title: "Event Sourcing Explained (CodeOpinion)"
@@ -134,6 +160,8 @@ topics:
 
       - id: system_design.leader_election
         name: Leader Election
+        difficulty_level: 3
+        prerequisites: [system_design.cap_theorem]
         resources:
           - type: article
             title: "Leader Election in Distributed Systems"
@@ -144,6 +172,8 @@ topics:
     children:
       - id: system_design.url_shortener
         name: Design URL Shortener
+        difficulty_level: 2
+        prerequisites: [system_design.caching, system_design.db_indexing]
         resources:
           - type: video
             title: "Design TinyURL (NeetCode)"
@@ -151,6 +181,8 @@ topics:
 
       - id: system_design.whatsapp
         name: Design WhatsApp
+        difficulty_level: 3
+        prerequisites: [system_design.message_queues, system_design.load_balancing]
         resources:
           - type: video
             title: "Design WhatsApp (Gaurav Sen)"
@@ -158,6 +190,8 @@ topics:
 
       - id: system_design.youtube
         name: Design YouTube
+        difficulty_level: 3
+        prerequisites: [system_design.caching, system_design.load_balancing]
         resources:
           - type: video
             title: "Design YouTube (ByteByteGo)"
@@ -165,6 +199,8 @@ topics:
 
       - id: system_design.uber
         name: Design Uber
+        difficulty_level: 3
+        prerequisites: [system_design.sharding, system_design.load_balancing]
         resources:
           - type: video
             title: "Design Uber (Gaurav Sen)"

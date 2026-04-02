@@ -113,8 +113,9 @@ class KnowledgeStore:
 
     def _search_fts(self, query: str, limit: int = 10, category: str = "") -> list:
         conn = sqlite3.connect(self.db_path)
-        # Build FTS5 query with prefix matching
-        tokens = query.strip().split()
+        # Build FTS5 query with prefix matching (strip non-alphanumeric chars)
+        import re as _re
+        tokens = _re.findall(r'\w+', query)
         fts_query = " OR ".join(f"{t}*" for t in tokens if t)
 
         if category:

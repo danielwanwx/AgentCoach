@@ -45,11 +45,17 @@ class OpenAICompatAdapter(LLMAdapter):
                     model=self.model_name,
                     messages=api_messages,
                 )
+                if not resp.choices:
+                    if attempt < _MAX_RETRIES - 1:
+                        time.sleep(_RETRY_DELAY * (2 ** attempt))
+                        continue
+                    return ""
                 text = resp.choices[0].message.content or ""
                 return _strip_think_tags(text)
-            except openai.RateLimitError:
+            except (openai.RateLimitError, openai.InternalServerError, openai.APITimeoutError):
+                wait = _RETRY_DELAY * (2 ** attempt)  # exponential backoff: 2, 4, 8s
                 if attempt < _MAX_RETRIES - 1:
-                    time.sleep(_RETRY_DELAY * (attempt + 1))
+                    time.sleep(wait)
                 else:
                     raise
         return ""

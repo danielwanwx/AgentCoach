@@ -31,6 +31,13 @@ def test_qwen_tts_lazy_initialization():
     tts = QwenTTS(device="cpu", lazy=True)
     assert tts.model is None
 
+def test_vibevoice_tts_lazy_initialization():
+    """VibeVoiceTTS can be instantiated with lazy loading — model not loaded until speak()."""
+    from agentcoach.voice.tts import VibeVoiceTTS
+    tts = VibeVoiceTTS(device="cpu", lazy=True)
+    assert tts._service is None
+    assert not hasattr(tts, "_model")
+
 import time
 from agentcoach.voice.tts import AsyncTTSWrapper, MacOSTTS
 

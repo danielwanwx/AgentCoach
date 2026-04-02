@@ -34,6 +34,8 @@ class SyllabusLoader:
                 "domain": domain,
                 "parent": parent_id,
                 "resources": topic.get("resources", []),
+                "difficulty_level": topic.get("difficulty_level", 1),
+                "prerequisites": topic.get("prerequisites", []),
             }
             children = topic.get("children", [])
             if children:

@@ -7,6 +7,8 @@ topics:
     children:
       - id: algorithms.arrays_strings
         name: Arrays & Strings
+        difficulty_level: 1
+        prerequisites: []
         resources:
           - type: video
             title: "Arrays & Strings (NeetCode)"
@@ -14,6 +16,8 @@ topics:
 
       - id: algorithms.hash_maps
         name: Hash Maps
+        difficulty_level: 1
+        prerequisites: []
         resources:
           - type: video
             title: "Hash Tables (CS Dojo)"
@@ -21,6 +25,8 @@ topics:
 
       - id: algorithms.binary_search
         name: Binary Search
+        difficulty_level: 1
+        prerequisites: [algorithms.arrays_strings]
         resources:
           - type: video
             title: "Binary Search (NeetCode)"
@@ -28,6 +34,8 @@ topics:
 
       - id: algorithms.two_pointers
         name: Two Pointers
+        difficulty_level: 1
+        prerequisites: [algorithms.arrays_strings]
         resources:
           - type: video
             title: "Two Pointers Technique (NeetCode)"
@@ -35,6 +43,8 @@ topics:
 
       - id: algorithms.sliding_window
         name: Sliding Window
+        difficulty_level: 2
+        prerequisites: [algorithms.two_pointers]
         resources:
           - type: video
             title: "Sliding Window (NeetCode)"
@@ -45,6 +55,8 @@ topics:
     children:
       - id: algorithms.trees_graphs
         name: Trees & Graphs
+        difficulty_level: 2
+        prerequisites: [algorithms.hash_maps]
         resources:
           - type: video
             title: "Tree Algorithms (NeetCode)"
@@ -52,6 +64,8 @@ topics:
 
       - id: algorithms.dynamic_programming
         name: Dynamic Programming
+        difficulty_level: 3
+        prerequisites: [algorithms.arrays_strings]
         resources:
           - type: video
             title: "DP for Beginners (NeetCode)"
@@ -59,6 +73,8 @@ topics:
 
       - id: algorithms.backtracking
         name: Backtracking
+        difficulty_level: 3
+        prerequisites: [algorithms.trees_graphs]
         resources:
           - type: video
             title: "Backtracking (NeetCode)"

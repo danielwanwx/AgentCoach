@@ -7,6 +7,8 @@ topics:
     children:
       - id: behavioral.star_framework
         name: STAR Framework
+        difficulty_level: 1
+        prerequisites: []
         resources:
           - type: article
             title: "HelloInterview: Behavioral Guide"
@@ -14,6 +16,8 @@ topics:
 
       - id: behavioral.leadership
         name: Leadership & Influence
+        difficulty_level: 2
+        prerequisites: [behavioral.star_framework]
         resources:
           - type: article
             title: "Amazon Leadership Principles"
@@ -21,16 +25,24 @@ topics:
 
       - id: behavioral.conflict
         name: Conflict Resolution
+        difficulty_level: 2
+        prerequisites: [behavioral.star_framework]
         resources: []
 
       - id: behavioral.failure
         name: Failure & Learning
+        difficulty_level: 2
+        prerequisites: [behavioral.star_framework]
         resources: []
 
       - id: behavioral.collaboration
         name: Cross-Team Collaboration
+        difficulty_level: 2
+        prerequisites: [behavioral.star_framework]
         resources: []
 
       - id: behavioral.technical_decisions
         name: Technical Decision Making
+        difficulty_level: 2
+        prerequisites: [behavioral.star_framework]
         resources: []
