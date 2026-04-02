@@ -58,6 +58,10 @@ def main():
     recommender = Recommender(analytics)
     user_id = "default"  # single user for now
 
+    # Initialize JD store
+    from agentcoach.user.jd_store import JDStore
+    jd_store = JDStore()
+
     # Initialize KB
     from agentcoach.kb.store import KnowledgeStore
     kb = KnowledgeStore(use_vectors=False)
@@ -75,7 +79,7 @@ def main():
 
     # Main menu loop
     while True:
-        domain, mode, topic = _show_menu(syllabus, analytics, recommender, user_id, mem=mem)
+        domain, mode, topic = _show_menu(syllabus, analytics, recommender, user_id, mem=mem, jd_store=jd_store)
         if domain is None:
             break  # user quit
 
@@ -123,6 +127,17 @@ def main():
                 memory_ctx += f"\n\n### User Profile\n{profile_ctx}"
         except Exception:
             pass
+
+        # Inject active JD context
+        try:
+            active_jd = jd_store.get_active_jd(user_id)
+            if active_jd:
+                from agentcoach.coaching.context_builder import format_jd_for_prompt
+                topic_name = topic["name"] if topic else ""
+                jd_ctx = format_jd_for_prompt(active_jd, current_topic=topic_name)
+                memory_ctx += f"\n\n{jd_ctx}"
+        except Exception:
+            active_jd = None
 
         # Inject company profile for mock mode
         if mode == "mock":

@@ -1,4 +1,4 @@
-def _show_menu(syllabus, analytics, recommender, user_id, mem=None):
+def _show_menu(syllabus, analytics, recommender, user_id, mem=None, jd_store=None):
     """Show domain/mode selection. Returns (domain, mode, topic) or (None, None, None) to quit."""
     domains = syllabus.get_domains()
 
@@ -144,6 +144,48 @@ def _show_menu(syllabus, analytics, recommender, user_id, mem=None):
                 print()  # UI output
             except Exception as e:
                 print(f"Error: {e}")  # UI output
+            continue
+
+        # JD commands
+        if choice_lower == "jd" and jd_store:
+            print("Paste job description text (enter an empty line to finish):")  # UI output
+            jd_lines = []
+            try:
+                while True:
+                    line = input()
+                    if line == "":
+                        break
+                    jd_lines.append(line)
+            except (KeyboardInterrupt, EOFError):
+                pass
+            if jd_lines:
+                raw_text = "\n".join(jd_lines)
+                from agentcoach.user.jd_parser import parse_jd_offline, map_skills_to_topics
+                parsed = parse_jd_offline(raw_text)
+                jd_id = jd_store.save_jd(user_id, parsed)
+                print(f"JD saved (id={jd_id}): {parsed.role_title or 'Untitled'} at {parsed.company or 'Unknown'}")  # UI output
+            else:
+                print("No text entered.")  # UI output
+            continue
+
+        if choice_lower == "jd list" and jd_store:
+            jds = jd_store.list_jds(user_id)
+            if not jds:
+                print("No saved JDs.\n")  # UI output
+            else:
+                for j in jds:
+                    active = " [ACTIVE]" if j["is_active"] else ""
+                    print(f"  {j['id']}. {j['company'] or '?'} — {j['role_title'] or '?'} ({j['level'] or '?'}){active}")  # UI output
+                print()  # UI output
+            continue
+
+        if choice_lower.startswith("jd switch ") and jd_store:
+            try:
+                jd_id = int(choice_lower.split()[-1])
+                jd_store.set_active_jd(user_id, jd_id)
+                print(f"Switched active JD to id={jd_id}.")  # UI output
+            except (ValueError, IndexError):
+                print("Usage: jd switch <id>")  # UI output
             continue
 
         # Try to parse as domain number

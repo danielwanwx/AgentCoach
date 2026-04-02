@@ -9,6 +9,7 @@ def generate_study_plan(
     days_until_interview: int = 14,
     target_company: str = "",
     sessions_per_day: int = 2,
+    active_jd=None,
 ) -> list:
     """Generate a day-by-day study plan.
 
@@ -18,10 +19,20 @@ def generate_study_plan(
         days_until_interview: countdown
         target_company: optional company name for topic prioritization
         sessions_per_day: how many study sessions per day
+        active_jd: optional ParsedJD for JD-based topic weighting
 
     Returns:
         list of {day, date, sessions: [{topic_id, topic_name, mode, reason}]}
     """
+    # Build JD topic sets for weighting
+    jd_required_topics = set()
+    jd_preferred_topics = set()
+    if active_jd:
+        for s in active_jd.required_skills:
+            jd_required_topics.update(s.mapped_topics)
+        for s in active_jd.preferred_skills:
+            jd_preferred_topics.update(s.mapped_topics)
+
     # Score each topic by urgency
     scored = []
     for t in syllabus_topics:
@@ -33,6 +44,15 @@ def generate_study_plan(
         gap = max(0, 70 - mastery)
         # Priority: higher difficulty topics need more time
         urgency = gap * (1 + difficulty * 0.2)
+
+        # JD weighting
+        if active_jd:
+            if tid in jd_required_topics:
+                urgency *= 2.0
+            elif tid in jd_preferred_topics:
+                urgency *= 1.5
+            else:
+                urgency *= 0.5
         # Determine mode
         if mastery == 0:
             mode = "learn"

@@ -1,6 +1,7 @@
 from agentcoach.llm.base import Message
 from agentcoach.prompt.templates import build_system_prompt, QUIZ_STATE_SECTION
 from agentcoach.coaching.quiz_state import DIFFICULTY_LABELS
+from agentcoach.user.jd_parser import ParsedJD
 
 
 def update_kb_context(kb_store, query, mode, memory_context, kb_teaching_context, history):
@@ -40,6 +41,50 @@ def refresh_system_prompt(quiz_state, mode, memory_context, kb_teaching_context,
         quiz_state_context=quiz_ctx,
     )
     history[0] = Message(role="system", content=updated)
+
+
+def format_jd_for_prompt(jd: ParsedJD, current_topic: str = "") -> str:
+    """Format JD info for Coach prompt, scoped to current topic."""
+    parts = [f"## Target Position: {jd.company} — {jd.role_title}"]
+    if jd.level:
+        parts.append(f"Level: {jd.level}")
+    if jd.team:
+        parts.append(f"Team: {jd.team}")
+
+    # Check if current topic is relevant to JD
+    current_lower = current_topic.lower()
+    relevant_required = [
+        s for s in jd.required_skills
+        if current_lower in s.name.lower()
+        or any(current_lower in t.lower() for t in s.mapped_topics)
+    ]
+    relevant_preferred = [
+        s for s in jd.preferred_skills
+        if current_lower in s.name.lower()
+        or any(current_lower in t.lower() for t in s.mapped_topics)
+    ]
+
+    if relevant_required:
+        parts.append(
+            f"\nThis topic is a REQUIRED skill in the JD. Ensure thorough mastery."
+        )
+        parts.append(
+            f"Related JD skills: {', '.join(s.name for s in relevant_required)}"
+        )
+    elif relevant_preferred:
+        parts.append(
+            f"\nThis topic is a PREFERRED skill in the JD. Cover key concepts and tradeoffs."
+        )
+        parts.append(
+            f"Related JD skills: {', '.join(s.name for s in relevant_preferred)}"
+        )
+
+    if jd.key_responsibilities:
+        parts.append(
+            f"\nKey responsibilities: {'; '.join(jd.key_responsibilities[:3])}"
+        )
+
+    return "\n".join(parts)
 
 
 def inject_strategy(mode, quiz_state, user_input, history_len):
