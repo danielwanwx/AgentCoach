@@ -1,8 +1,16 @@
-"""Knowledge Store — SQLite FTS5 + optional vector search with RRF hybrid ranking."""
+"""Knowledge Store — SQLite FTS5 + optional vector search with RRF hybrid ranking.
+
+Knowledge prioritization (inspired by AgentMem):
+- P0: Core concepts, definitions, fundamental truths — never expire
+- P1: Detailed explanations, case studies — 90 day relevance
+- P2: Session fragments, examples — 30 day relevance
+- Access tracking: frequently retrieved chunks get boosted in search ranking
+"""
 import sqlite3
 import struct
 import os
 import math
+from datetime import datetime
 
 
 class KnowledgeStore:
@@ -48,8 +56,30 @@ class KnowledgeStore:
                 VALUES (new.id, new.content, new.source, new.section, new.category);
             END
         """)
+        # Migration: add priority + access tracking columns
+        try:
+            conn.execute("ALTER TABLE chunks ADD COLUMN priority INTEGER DEFAULT 2")
+        except sqlite3.OperationalError:
+            pass  # column already exists
+        try:
+            conn.execute("ALTER TABLE chunks ADD COLUMN summary TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE chunks ADD COLUMN access_count INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE chunks ADD COLUMN last_accessed TIMESTAMP")
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
         conn.close()
+
+    # Priority constants
+    P0_CORE = 0      # core concepts, never expire
+    P1_DETAILED = 1  # detailed explanations, 90-day relevance
+    P2_FRAGMENT = 2  # session fragments, 30-day relevance
 
     def _pack_vector(self, vec: list) -> bytes:
         return struct.pack(f'{len(vec)}f', *vec)
@@ -66,7 +96,8 @@ class KnowledgeStore:
             return 0.0
         return dot / (norm_a * norm_b)
 
-    def add_chunk(self, content: str, source: str, section: str, category: str):
+    def add_chunk(self, content: str, source: str, section: str, category: str,
+                   priority: int = 2, summary: str = ""):
         embedding_blob = None
         if self.use_vectors and self.embedder:
             vec = self.embedder.embed(content)
@@ -74,8 +105,9 @@ class KnowledgeStore:
 
         conn = sqlite3.connect(self.db_path)
         conn.execute(
-            "INSERT INTO chunks (content, source, section, category, embedding) VALUES (?, ?, ?, ?, ?)",
-            (content, source, section, category, embedding_blob),
+            "INSERT INTO chunks (content, source, section, category, embedding, priority, summary) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (content, source, section, category, embedding_blob, priority, summary or None),
         )
         conn.commit()
         conn.close()
@@ -102,14 +134,60 @@ class KnowledgeStore:
         conn.close()
 
     def search(self, query: str, limit: int = 5, category: str = "") -> list:
-        """Hybrid search: FTS5 + vector (if available), ranked by RRF."""
+        """Hybrid search: FTS5 + vector (if available), ranked by RRF + priority boost."""
         fts_results = self._search_fts(query, limit=limit * 2, category=category)
 
         if not self.use_vectors or not self.embedder:
-            return fts_results[:limit]
+            results = fts_results[:limit]
+        else:
+            vec_results = self._search_vector(query, limit=limit * 2, category=category)
+            results = self._rrf_merge(fts_results, vec_results, limit=limit)
 
-        vec_results = self._search_vector(query, limit=limit * 2, category=category)
-        return self._rrf_merge(fts_results, vec_results, limit=limit)
+        # Boost by priority: P0 chunks float to top, P2 sink
+        results = self._boost_by_priority(results)
+
+        # Track access for returned results
+        self._record_access([r["id"] for r in results if "id" in r])
+
+        return results[:limit]
+
+    def _boost_by_priority(self, results: list) -> list:
+        """Re-rank results by priority: P0 > P1 > P2, with access frequency as tiebreaker."""
+        if not results:
+            return results
+        conn = sqlite3.connect(self.db_path)
+        for r in results:
+            if "id" not in r:
+                r["_boost"] = 0
+                continue
+            row = conn.execute(
+                "SELECT priority, access_count FROM chunks WHERE id = ?", (r["id"],)
+            ).fetchone()
+            if row:
+                priority, access_count = row
+                # Lower priority number = more important. Boost = (3 - priority) * 0.3 + log(access+1) * 0.1
+                r["_boost"] = (3 - (priority or 2)) * 0.3 + math.log1p(access_count or 0) * 0.1
+            else:
+                r["_boost"] = 0
+        conn.close()
+        # Sort by boost descending (stable sort preserves original rank for equal boosts)
+        results.sort(key=lambda x: x.get("_boost", 0), reverse=True)
+        return results
+
+    def _record_access(self, chunk_ids: list):
+        """Increment access count and update last_accessed timestamp."""
+        if not chunk_ids:
+            return
+        conn = sqlite3.connect(self.db_path)
+        now = datetime.utcnow().isoformat()
+        for cid in chunk_ids:
+            conn.execute(
+                "UPDATE chunks SET access_count = COALESCE(access_count, 0) + 1, "
+                "last_accessed = ? WHERE id = ?",
+                (now, cid),
+            )
+        conn.commit()
+        conn.close()
 
     def _search_fts(self, query: str, limit: int = 10, category: str = "") -> list:
         conn = sqlite3.connect(self.db_path)
@@ -185,14 +263,41 @@ class KnowledgeStore:
         items.sort(key=lambda x: x.get("rrf_score", 0), reverse=True)
         return items[:limit]
 
+    def set_priority(self, chunk_id: int = None, source: str = None, priority: int = 2):
+        """Set priority for a chunk by ID, or all chunks from a source."""
+        conn = sqlite3.connect(self.db_path)
+        if chunk_id:
+            conn.execute("UPDATE chunks SET priority = ? WHERE id = ?", (priority, chunk_id))
+        elif source:
+            conn.execute("UPDATE chunks SET priority = ? WHERE source = ?", (priority, source))
+        conn.commit()
+        conn.close()
+
+    def set_priority_by_section(self, section_pattern: str, priority: int):
+        """Set priority for chunks whose section matches a pattern (SQL LIKE)."""
+        conn = sqlite3.connect(self.db_path)
+        conn.execute("UPDATE chunks SET priority = ? WHERE section LIKE ?",
+                     (priority, f"%{section_pattern}%"))
+        conn.commit()
+        conn.close()
+
     def get_stats(self) -> dict:
         conn = sqlite3.connect(self.db_path)
         total = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
         categories = conn.execute("SELECT DISTINCT category FROM chunks").fetchall()
         sources = conn.execute("SELECT COUNT(DISTINCT source) FROM chunks").fetchone()[0]
+        priority_dist = conn.execute(
+            "SELECT COALESCE(priority, 2), COUNT(*) FROM chunks GROUP BY priority"
+        ).fetchall()
+        most_accessed = conn.execute(
+            "SELECT source, section, access_count FROM chunks "
+            "WHERE access_count > 0 ORDER BY access_count DESC LIMIT 5"
+        ).fetchall()
         conn.close()
         return {
             "total_chunks": total,
             "categories": [c[0] for c in categories],
             "total_sources": sources,
+            "priority_distribution": {f"P{p}": c for p, c in priority_dist},
+            "most_accessed": [{"source": r[0], "section": r[1], "count": r[2]} for r in most_accessed],
         }
