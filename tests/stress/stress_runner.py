@@ -123,7 +123,9 @@ def run_scenario(scenario: Scenario, voice: bool = True,
     # --- Initialize components ---
     router = LLMRouter.from_env()
     coach_llm = router.get("coaching")
-    scorer_llm = router.get("scoring")
+    # Use coaching LLM for scoring too — avoids API key scope issues
+    # and ensures the scorer actually works with the available provider
+    scorer_llm = router.get("coaching")
 
     # Use temp directories for stress test databases (avoid polluting real data)
     tmp_dir = tempfile.mkdtemp(prefix="agentcoach_stress_")

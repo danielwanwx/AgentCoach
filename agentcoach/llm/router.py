@@ -95,4 +95,14 @@ class LLMRouter:
             task_providers["compression"] = create_provider("gemini", gemini_key)
             task_providers["kb_rerank"] = create_provider("gemini", gemini_key)
 
+        # Local Gemma 4 routing: use a smaller model for lightweight tasks
+        # Set LOCAL_LLM_PROVIDER=ollama to use local Gemma 4 for all tasks
+        # Set LOCAL_LLM_SMALL=ollama-small to route compression/rerank to E4B
+        local_small = os.getenv("LOCAL_LLM_SMALL")
+        if local_small and local_small in ("ollama-small",):
+            small = create_provider(local_small, "not-needed")
+            task_providers.setdefault("compression", small)
+            task_providers.setdefault("kb_rerank", small)
+            task_providers.setdefault("quiz_eval", small)
+
         return cls(default_provider=default, task_providers=task_providers)

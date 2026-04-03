@@ -8,7 +8,12 @@ SCORE_PROMPT = """Evaluate this {mode} session on topic "{topic_id}".
 
 {rubric_section}
 
-Return a single JSON object (not an array):
+Return a single JSON object. Do NOT wrap it in markdown code fences. Do NOT add any text before or after the JSON.
+
+Example output:
+{{"topic_id": "system_design.caching", "overall_score": 3.8, "dimensions": [{{"name": "requirements", "score": 4, "evidence": "Asked good clarifying questions about scale"}}, {{"name": "high_level_design", "score": 3, "evidence": "Proposed reasonable architecture but missed CDN layer"}}], "strengths": ["Strong grasp of cache invalidation patterns"], "areas_to_improve": ["Need to discuss trade-offs between consistency models"]}}
+
+Now score this session:
 {{
   "topic_id": "{topic_id}",
   "overall_score": <float 1.0-5.0>,
@@ -23,14 +28,19 @@ Rules:
 - Score each dimension 1-5 using the rubric above
 - overall_score = weighted average of dimensions
 - Be fair but rigorous. Cite specific moments from the conversation.
-- Return ONLY the JSON object, no other text.
+- Return ONLY the JSON object, no markdown, no explanation.
 {kb_reference_section}"""
 
 # Mastery gain multipliers per mode (adjusted for better user progression)
 MASTERY_GAIN = {
-    "learn": 0.15,      # 15% of score → mastery
-    "reinforce": 0.20,  # 20%
-    "mock": 0.25,       # 25% (hardest mode, should reward most)
+    "learn": 0.15,           # 15% of score → mastery
+    "reinforce": 0.20,       # 20%
+    "mock": 0.25,            # 25% (hardest mode, should reward most)
+    "mock_system_design": 0.25,
+    "mock_algorithms": 0.25,
+    "mock_ai_agent": 0.25,
+    "mock_behavioral": 0.25,
+    "behavioral": 0.25,
 }
 MAX_MASTERY_GAIN_PER_SESSION = 25  # cap at 25% per session
 
@@ -80,17 +90,36 @@ class Scorer:
 
         try:
             response = self.llm.generate(messages)
-            return self._parse_structured_score(response, mode, topic_id)
-        except Exception:
+            result = self._parse_structured_score(response, mode, topic_id)
+            if not result:
+                import sys
+                print(f"  [Scorer] WARNING: empty parse result. Raw LLM response (first 300 chars):\n  {response[:300]}", file=sys.stderr)
+            return result
+        except Exception as e:
             # Fallback to legacy parsing
             try:
                 return self._parse_scores(response, fallback_topic_id=topic_id)
             except Exception:
+                import sys
+                print(f"  [Scorer] ERROR: all parsing failed: {e}", file=sys.stderr)
                 return []
+
+    @staticmethod
+    def _clean_llm_json(text: str) -> str:
+        """Strip markdown fences, think tags, and surrounding text from LLM JSON output."""
+        # Strip <think>...</think> blocks
+        text = re.sub(r"<think>[\s\S]*?</think>\s*", "", text)
+        # Strip markdown code fences: ```json ... ``` or ``` ... ```
+        fence_match = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```', text)
+        if fence_match:
+            return fence_match.group(1)
+        return text
 
     def _parse_structured_score(self, text: str, mode: str, topic_id: str) -> list:
         """Parse structured JSON score and compute mastery delta."""
         try:
+            text = self._clean_llm_json(text)
+
             # Check if response is legacy array format [{"score_delta": ...}]
             array_match = re.search(r'\[[\s\S]*\]', text)
             if array_match and '"score_delta"' in text and '"overall_score"' not in text:
@@ -106,7 +135,10 @@ class Scorer:
             overall = float(data.get("overall_score", 3.0))
 
             # Compute mastery delta from overall score and mode
-            gain_rate = MASTERY_GAIN.get(mode, 0.15)
+            # Fall back to "mock" rate for any mock_* variant not explicitly listed
+            gain_rate = MASTERY_GAIN.get(mode) or MASTERY_GAIN.get(
+                "mock" if mode.startswith("mock") else mode, 0.15
+            )
             # Score 3.0 = neutral, 5.0 = max gain, 1.0 = negative
             raw_delta = (overall - 2.0) * gain_rate * 20  # maps 1-5 → -20 to +60 before cap
             score_delta = int(max(-20, min(MAX_MASTERY_GAIN_PER_SESSION / gain_rate, raw_delta)))

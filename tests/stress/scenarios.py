@@ -10,7 +10,7 @@ from dataclasses import dataclass
 class Scenario:
     name: str
     domain: str
-    mode: str           # "learn" | "reinforce" | "mock"
+    mode: str           # "learn" | "reinforce" | "mock_system_design" | "mock_behavioral" | etc.
     topic_id: str       # must match syllabus YAML topic IDs
     persona_prompt: str  # system prompt for the simulated candidate
     min_turns: int
@@ -60,7 +60,7 @@ SCENARIOS = [
     Scenario(
         name="SD Message Queues - Mock Interview",
         domain="system_design",
-        mode="mock",
+        mode="mock_system_design",
         topic_id="system_design.message_queues",
         persona_prompt=(
             CANDIDATE_BIO
@@ -90,7 +90,7 @@ SCENARIOS = [
     Scenario(
         name="Behavioral Leadership - Mock",
         domain="behavioral",
-        mode="mock",
+        mode="mock_behavioral",
         topic_id="behavioral.leadership",
         persona_prompt=(
             CANDIDATE_BIO
@@ -120,7 +120,7 @@ SCENARIOS = [
     Scenario(
         name="Design YouTube - Mock Interview",
         domain="system_design",
-        mode="mock",
+        mode="mock_system_design",
         topic_id="system_design.youtube",
         persona_prompt=(
             CANDIDATE_BIO

@@ -7,6 +7,11 @@ llm:
   # scoring: openai/gpt-4o              # requires OPENAI_API_KEY
   # quiz_eval: openai/gpt-4o-mini
   # compression: google/gemini-flash    # requires GEMINI_API_KEY
+  #
+  # Local Gemma 4 (Apache 2.0, free, self-hosted):
+  # Set LLM_PROVIDER=ollama LLM_API_KEY=not-needed for local inference
+  # Requires: ollama run gemma4:31b (coaching/scoring, 20GB)
+  # Optional: LOCAL_LLM_SMALL=ollama-small for gemma4:e4b (compression/rerank, 9.6GB)
 
 kb:
   search_top_k: 5

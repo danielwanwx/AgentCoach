@@ -4,7 +4,8 @@ from agentcoach.coaching.quiz_state import DIFFICULTY_LABELS
 from agentcoach.user.jd_parser import ParsedJD
 
 
-def update_kb_context(kb_store, query, mode, memory_context, kb_teaching_context, history):
+def update_kb_context(kb_store, query, mode, memory_context, kb_teaching_context, history,
+                      topic_id="", topic_name=""):
     """Search KB and update system prompt with relevant knowledge."""
     try:
         results = kb_store.search(query, limit=3)
@@ -16,13 +17,15 @@ def update_kb_context(kb_store, query, mode, memory_context, kb_teaching_context
             updated_prompt = build_system_prompt(
                 mode, memory_context, kb_context=kb_text,
                 kb_teaching_content=kb_teaching_context,
+                topic_id=topic_id, topic_name=topic_name,
             )
             history[0] = Message(role="system", content=updated_prompt)
     except Exception:
         pass  # KB search failure should not break the interview
 
 
-def refresh_system_prompt(quiz_state, mode, memory_context, kb_teaching_context, history):
+def refresh_system_prompt(quiz_state, mode, memory_context, kb_teaching_context, history,
+                          topic_id="", topic_name=""):
     """Rebuild system prompt with current quiz state."""
     qs = quiz_state
     weak_line = ""
@@ -39,6 +42,7 @@ def refresh_system_prompt(quiz_state, mode, memory_context, kb_teaching_context,
         mode, memory_context,
         kb_teaching_content=kb_teaching_context,
         quiz_state_context=quiz_ctx,
+        topic_id=topic_id, topic_name=topic_name,
     )
     history[0] = Message(role="system", content=updated)
 

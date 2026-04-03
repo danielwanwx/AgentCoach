@@ -33,6 +33,7 @@ class Coach:
         self.quiz_state = QuizState()
         system_prompt = build_system_prompt(
             mode, memory_context, kb_teaching_content=kb_teaching_context,
+            topic_id=topic_id, topic_name=topic_name,
         )
         self.history: list = [Message(role="system", content=system_prompt)]
 
@@ -56,6 +57,7 @@ class Coach:
             update_kb_context(
                 self.kb_store, user_input, self.mode,
                 self.memory_context, self.kb_teaching_context, self.history,
+                topic_id=self.topic_id, topic_name=self.topic_name,
             )
         # Select and inject teaching strategy for learn/reinforce modes
         self._current_strategy = None
@@ -131,6 +133,7 @@ class Coach:
             refresh_system_prompt(
                 self.quiz_state, self.mode, self.memory_context,
                 self.kb_teaching_context, self.history,
+                topic_id=self.topic_id, topic_name=self.topic_name,
             )
 
     def get_feedback_summary(self) -> str:

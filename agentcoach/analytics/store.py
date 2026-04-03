@@ -102,6 +102,40 @@ class AnalyticsStore:
         conn.close()
         return row[0] if row and row[0] else None
 
+    def get_all_mastery(self, user_id: str) -> dict:
+        """Return mastery for all topics the user has practiced."""
+        conn = sqlite3.connect(self.db_path)
+        rows = conn.execute(
+            "SELECT DISTINCT topic_id FROM score_events WHERE user_id = ?",
+            (user_id,),
+        ).fetchall()
+        conn.close()
+        result = {}
+        for (tid,) in rows:
+            result[tid] = self.get_mastery(user_id, tid)
+        return result
+
+    def get_topic_summary(self, user_id: str, topic_id: str) -> dict:
+        """Get summary for a topic: mastery, last score, last practiced."""
+        conn = sqlite3.connect(self.db_path)
+        rows = conn.execute(
+            "SELECT score_delta, mode, evidence, created_at FROM score_events "
+            "WHERE user_id = ? AND topic_id = ? ORDER BY created_at DESC LIMIT 1",
+            (user_id, topic_id),
+        ).fetchall()
+        conn.close()
+        mastery = self.get_mastery(user_id, topic_id)
+        if rows:
+            last = rows[0]
+            return {
+                "mastery": mastery,
+                "last_score_delta": last[0],
+                "last_mode": last[1],
+                "last_evidence": last[2],
+                "last_practiced": last[3],
+            }
+        return {"mastery": mastery}
+
     def get_history(self, user_id: str, topic_id: str, limit: int = 10) -> list:
         conn = sqlite3.connect(self.db_path)
         rows = conn.execute(

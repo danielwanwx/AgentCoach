@@ -144,10 +144,19 @@ def get_coach_system_prompt(mode: str) -> str:
     return TEMPLATES[mode]
 
 
+TOPIC_CONSTRAINT = """## Topic Constraint
+IMPORTANT: This session's topic is **{topic_name}** ({topic_id}).
+You MUST stay on this topic. Every question, explanation, and follow-up must directly relate to {topic_name}.
+Do NOT drift into unrelated topics, even if tangentially related. If the candidate goes off-topic, redirect them back."""
+
+
 def build_system_prompt(mode: str, memory_context: str = "", kb_context: str = "",
-                        kb_teaching_content: str = "", quiz_state_context: str = "") -> str:
+                        kb_teaching_content: str = "", quiz_state_context: str = "",
+                        topic_id: str = "", topic_name: str = "") -> str:
     base = get_coach_system_prompt(mode)
     parts = [base]
+    if topic_id and topic_name:
+        parts.append(TOPIC_CONSTRAINT.format(topic_name=topic_name, topic_id=topic_id))
     if kb_teaching_content:
         parts.append(LEARN_KB_SECTION.format(kb_content=kb_teaching_content))
     if memory_context:

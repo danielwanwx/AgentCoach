@@ -17,6 +17,10 @@ PROVIDERS = {
     "minimax": ("https://api.minimax.chat/v1", "MiniMax-M2.7"),
     "deepseek": ("https://api.deepseek.com/v1", "deepseek-chat"),
     "openai": (None, "gpt-4o-mini"),
+    # Local providers — Gemma 4 via Ollama or vLLM (Apache 2.0, free)
+    "ollama": ("http://localhost:11434/v1", "gemma4:31b"),
+    "ollama-small": ("http://localhost:11434/v1", "gemma4:e4b"),
+    "vllm": ("http://localhost:8000/v1", "google/gemma-4-31B-it"),
 }
 
 
