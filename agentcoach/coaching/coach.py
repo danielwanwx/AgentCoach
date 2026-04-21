@@ -50,6 +50,13 @@ class Coach:
         self.history.append(Message(role="assistant", content=response))
         return response
 
+    # After this many user turns in `learn` mode the coach is forced to
+    # transition from TEACH to QUIZ, even if `detect_quiz_start` never
+    # fires in the coach's own output. Observed in E2E: some junior
+    # sessions keep asking open questions forever and the coach stays in
+    # teach mode for all 12 turns, tanking mode_fidelity.
+    LEARN_FORCE_QUIZ_AFTER_USER_TURNS = 5
+
     def respond(self, user_input: str) -> str:
         """Send user's answer, get coach's next question/feedback."""
         compress_history(self.history, self.llm)
@@ -62,16 +69,21 @@ class Coach:
                 topic_id=self.topic_id, topic_name=self.topic_name,
                 mock_reference_context=self.mock_reference_context,
             )
+        # Force TEACH → QUIZ transition in learn mode if we've been
+        # teaching for a while and the heuristic quiz-start never fired.
+        forced_quiz_instruction = self._maybe_force_quiz_transition()
         # Select and inject teaching strategy for learn/reinforce modes
         self._current_strategy = None
         if self.mode in ("learn", "reinforce"):
             self._current_strategy = inject_strategy(
                 self.mode, self.quiz_state, user_input, len(self.history),
             )
-        # Build messages: add strategy hint if active
-        if self._current_strategy:
+        # Build messages: add forced-quiz override first (higher priority),
+        # otherwise fall back to the regular strategy hint.
+        instruction = forced_quiz_instruction or self._current_strategy
+        if instruction:
             msgs = list(self.history)
-            msgs.insert(-1, Message(role="user", content=f"[Teaching instruction for coach: {self._current_strategy}]"))
+            msgs.insert(-1, Message(role="user", content=f"[Teaching instruction for coach: {instruction}]"))
             response = self.llm.generate(msgs)
         else:
             response = self.llm.generate(self.history)
@@ -80,6 +92,38 @@ class Coach:
         if self.mode in ("learn", "reinforce"):
             self._update_quiz_state(user_input, response)
         return response
+
+    def _maybe_force_quiz_transition(self) -> str:
+        """Flip QuizState to quiz phase once we've had enough teach turns.
+
+        Returns an instruction string to inject for this turn only, or ""
+        if no transition is needed. Idempotent: only fires once per
+        session, on the first respond() call after the threshold.
+        """
+        if self.mode != "learn":
+            return ""
+        if self.quiz_state._quiz_active:
+            return ""
+        user_turns = sum(1 for m in self.history if m.role == "user")
+        if user_turns < self.LEARN_FORCE_QUIZ_AFTER_USER_TURNS:
+            return ""
+        self.quiz_state._quiz_active = True
+        # Refresh system prompt so QUIZ_STATE_SECTION becomes visible.
+        from agentcoach.coaching.context_builder import refresh_system_prompt
+        refresh_system_prompt(
+            self.quiz_state, self.mode, self.memory_context,
+            self.kb_teaching_context, self.history,
+            topic_id=self.topic_id, topic_name=self.topic_name,
+            mock_reference_context=self.mock_reference_context,
+        )
+        return (
+            "You have been in the TEACHING phase for several turns. Now "
+            "TRANSITION to the QUIZ phase: acknowledge the learner's "
+            "question in ONE short sentence, then immediately ask ONE "
+            "concrete knowledge-check question drawn from the Teaching "
+            "Material (start at concept-recall difficulty). Do NOT keep "
+            "answering open-ended questions; the quiz has started."
+        )
 
     def _update_quiz_state(self, user_input: str, response: str):
         """Detect correct/incorrect answers and adjust quiz difficulty.
