@@ -19,7 +19,7 @@ def _bar(pct: int, width: int = 20) -> str:
 
 
 def _show_progress_dashboard(analytics, user_id: str):
-    """Display mastery dashboard for all practiced topics."""
+    """Display mastery dashboard + per-domain skill growth curves."""
     all_mastery = analytics.get_all_mastery(user_id)
     if not all_mastery:
         print("\n  No practice history yet. Complete a session to start tracking progress.\n")
@@ -40,6 +40,18 @@ def _show_progress_dashboard(analytics, user_id: str):
             print(f"    {name:22s}  {_bar(mastery, 16)}  {mastery}%")
     print()
 
+    # Skill growth curves (per-domain, per-dimension trajectory)
+    try:
+        from agentcoach.analytics.skill_profile import (
+            build_skill_profile, render_growth_curve,
+        )
+        for domain in sorted(domains.keys()):
+            profile = build_skill_profile(analytics, user_id, domain)
+            if profile.get("dimensions"):
+                print(render_growth_curve(profile))
+    except Exception as e:
+        logger.error("skill_profile_render_failed", error=str(e))
+
 
 def _show_pre_session_context(analytics, user_id: str, topic_id: str, topic_name: str):
     """Show relevant mastery context before session starts."""
@@ -59,8 +71,13 @@ def _show_pre_session_context(analytics, user_id: str, topic_id: str, topic_name
 def _end_session(coach, mem):
     """Generate and save feedback and learning state if there was meaningful conversation."""
     if len(coach.history) > 2:
-        print("\nGenerating session feedback...")  # UI output
-        feedback = coach.get_feedback_summary()
+        print("\nGenerating session wrap-up...")  # UI output
+        # Prefer the structured wrap_up (recap + strengths + improvements +
+        # 1-10 score) over the older free-form feedback summary.
+        try:
+            feedback = coach.wrap_up()
+        except Exception:
+            feedback = coach.get_feedback_summary()
         if feedback:
             print(f"\n{feedback}\n")  # UI output
             mem.save_feedback(feedback)
@@ -90,6 +107,7 @@ def _score_and_save(coach, analytics, user_id, topic, mode, llm, kb_store=None, 
 
         try:
             from agentcoach.analytics.scorer import Scorer
+            from agentcoach.analytics.skill_profile import render_skill_report
             logger.info("session_scoring_start")
             scorer = Scorer(llm, kb_store=kb_store, syllabus=syllabus)
             scores = scorer.score_session(coach.history, mode=mode, topic_id=topic_id)
@@ -103,18 +121,71 @@ def _score_and_save(coach, analytics, user_id, topic, mode, llm, kb_store=None, 
                     if s.get("evidence"):
                         print(f"  {s['evidence']}")
 
-                # Show mastery progression
-                if topic_id:
-                    post_mastery = analytics.get_mastery(user_id, topic_id)
-                    print(f"\n  Mastery: {_bar(pre_mastery)} {pre_mastery}%  -->  {_bar(post_mastery)} {post_mastery}%")
+                # Persist the structured assessment (dimensions + strengths/areas)
+                # so the user has a trackable skill profile over time.
+                primary = scores[0]
+                dims = primary.get("dimensions") or []
+                # The scorer currently only returns strengths/areas in its raw dict
+                # shape; our condensed evidence field loses them. Re-parse if we
+                # still have the raw response stashed on the result, otherwise
+                # fall back to whatever was captured in `evidence`.
+                strengths = primary.get("strengths") or []
+                areas = primary.get("areas_to_improve") or []
+                if not strengths and primary.get("evidence"):
+                    # Best-effort extraction from "Strengths: a, b. Improve: x, y"
+                    ev = primary["evidence"]
+                    if "Strengths:" in ev:
+                        tail = ev.split("Strengths:", 1)[1]
+                        head = tail.split(".", 1)[0]
+                        strengths = [s.strip() for s in head.split(",") if s.strip()]
+                    if "Improve:" in ev:
+                        tail = ev.split("Improve:", 1)[1]
+                        head = tail.split(".", 1)[0]
+                        areas = [s.strip() for s in head.split(",") if s.strip()]
 
-                    # Suggest next step
+                resolved_topic = primary.get("topic_id") or topic_id or "general"
+                domain = resolved_topic.split(".", 1)[0] if "." in resolved_topic else "general"
+                try:
+                    analytics.record_assessment(
+                        user_id=user_id,
+                        topic_id=resolved_topic,
+                        domain=domain,
+                        mode=mode,
+                        overall_score=float(primary.get("overall_score") or 0.0),
+                        dimensions=dims,
+                        strengths=strengths,
+                        areas_to_improve=areas,
+                    )
+                except Exception as rec_err:
+                    logger.error("assessment_persist_failed", error=str(rec_err))
+
+                # Candidate-facing skill report (dimension bars + focus areas)
+                post_mastery = analytics.get_mastery(user_id, topic_id) if topic_id else None
+                try:
+                    report_payload = {
+                        "topic_id": resolved_topic,
+                        "mode": mode,
+                        "overall_score": float(primary.get("overall_score") or 0.0),
+                        "dimensions": dims,
+                        "strengths": strengths,
+                        "areas_to_improve": areas,
+                    }
+                    print(render_skill_report(
+                        report_payload,
+                        mastery_before=pre_mastery,
+                        mastery_after=post_mastery,
+                    ))
+                except Exception as ren_err:
+                    logger.error("skill_report_render_failed", error=str(ren_err))
+
+                # Suggest next step based on mastery
+                if topic_id and post_mastery is not None:
                     if post_mastery < 40:
-                        print(f"  Next: continue in learn mode")
+                        print("  Next: continue in learn mode")
                     elif post_mastery < 70:
-                        print(f"  Next: try reinforce mode to solidify")
+                        print("  Next: try reinforce mode to solidify")
                     else:
-                        print(f"  Next: ready for mock interview!")
+                        print("  Next: ready for mock interview!")
                 print()
             else:
                 print("\n  [Scorer returned no results — check LLM response format]\n")

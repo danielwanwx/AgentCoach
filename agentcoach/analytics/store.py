@@ -1,4 +1,5 @@
 """Analytics store — tracks per-topic mastery scores with time decay."""
+import json as _json
 import sqlite3
 import os
 from datetime import datetime
@@ -26,6 +27,29 @@ class AnalyticsStore:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS skill_assessments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                topic_id TEXT NOT NULL,
+                domain TEXT NOT NULL,
+                mode TEXT NOT NULL,
+                session_id TEXT,
+                overall_score REAL NOT NULL,
+                dimensions_json TEXT NOT NULL,
+                strengths_json TEXT,
+                areas_json TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_assess_user_topic "
+            "ON skill_assessments(user_id, topic_id)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_assess_user_domain "
+            "ON skill_assessments(user_id, domain)"
+        )
         conn.commit()
         conn.close()
 
@@ -148,3 +172,130 @@ class AnalyticsStore:
             {"score_delta": r[0], "mode": r[1], "evidence": r[2], "timestamp": r[3]}
             for r in rows
         ]
+
+    # -------- Skill assessments (per-session, dimension-level) -------- #
+
+    def record_assessment(
+        self,
+        user_id: str,
+        topic_id: str,
+        domain: str,
+        mode: str,
+        overall_score: float,
+        dimensions: list,
+        strengths: Optional[list] = None,
+        areas_to_improve: Optional[list] = None,
+        session_id: Optional[str] = None,
+    ) -> int:
+        """Persist a structured skill assessment for one session.
+
+        `dimensions` is a list of {name, score, evidence} dicts (already
+        validated upstream by the scorer). Returns the new row id.
+        """
+        conn = sqlite3.connect(self.db_path)
+        cur = conn.execute(
+            "INSERT INTO skill_assessments "
+            "(user_id, topic_id, domain, mode, session_id, overall_score, "
+            " dimensions_json, strengths_json, areas_json) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                user_id,
+                topic_id,
+                domain,
+                mode,
+                session_id,
+                float(overall_score),
+                _json.dumps(dimensions or []),
+                _json.dumps(strengths or []),
+                _json.dumps(areas_to_improve or []),
+            ),
+        )
+        new_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        return new_id
+
+    def get_assessments(
+        self,
+        user_id: str,
+        domain: Optional[str] = None,
+        topic_id: Optional[str] = None,
+        limit: int = 50,
+    ) -> list:
+        """Return assessments (newest first) for the user, optionally filtered."""
+        q = (
+            "SELECT id, user_id, topic_id, domain, mode, session_id, "
+            "overall_score, dimensions_json, strengths_json, areas_json, "
+            "created_at FROM skill_assessments WHERE user_id = ?"
+        )
+        params: list = [user_id]
+        if domain:
+            q += " AND domain = ?"
+            params.append(domain)
+        if topic_id:
+            q += " AND topic_id = ?"
+            params.append(topic_id)
+        q += " ORDER BY created_at DESC, id DESC LIMIT ?"
+        params.append(limit)
+        conn = sqlite3.connect(self.db_path)
+        rows = conn.execute(q, params).fetchall()
+        conn.close()
+        results = []
+        for r in rows:
+            try:
+                dims = _json.loads(r[7]) if r[7] else []
+            except (ValueError, TypeError):
+                dims = []
+            try:
+                strengths = _json.loads(r[8]) if r[8] else []
+            except (ValueError, TypeError):
+                strengths = []
+            try:
+                areas = _json.loads(r[9]) if r[9] else []
+            except (ValueError, TypeError):
+                areas = []
+            results.append({
+                "id": r[0],
+                "user_id": r[1],
+                "topic_id": r[2],
+                "domain": r[3],
+                "mode": r[4],
+                "session_id": r[5],
+                "overall_score": r[6],
+                "dimensions": dims,
+                "strengths": strengths,
+                "areas_to_improve": areas,
+                "created_at": r[10],
+            })
+        return results
+
+    def get_skill_trajectory(
+        self,
+        user_id: str,
+        domain: str,
+        limit: int = 20,
+    ) -> dict:
+        """Build a per-dimension trajectory for `domain`.
+
+        Returns {dim_name: [{score, created_at, topic_id, mode}, ...]} oldest→newest.
+        Useful for plotting growth curves.
+        """
+        rows = self.get_assessments(user_id, domain=domain, limit=limit)
+        rows.reverse()  # oldest first for nicer sparklines
+        traj: dict = {}
+        for r in rows:
+            for d in r.get("dimensions", []):
+                name = d.get("name")
+                if not name:
+                    continue
+                try:
+                    score = float(d.get("score"))
+                except (TypeError, ValueError):
+                    continue
+                traj.setdefault(name, []).append({
+                    "score": score,
+                    "created_at": r["created_at"],
+                    "topic_id": r["topic_id"],
+                    "mode": r["mode"],
+                })
+        return traj

@@ -91,6 +91,7 @@ def main():
         # Build mode-specific system prompt hint
         mode_hint = ""
         kb_teaching_text = ""
+        mock_reference_text = ""
         if mode == "learn" and topic:
             resources = syllabus.get_resources(topic["id"])
             res_text = "\n".join(f"  - [{r['type']}] {r['title']}: {r.get('url', 'N/A')}" for r in resources)
@@ -106,8 +107,23 @@ def main():
         elif mode == "reinforce" and topic:
             mastery = analytics.get_mastery(user_id, topic["id"])
             mode_hint = f"\nMode: Reinforce -- Topic: {topic['name']} (current mastery: {mastery}%)\nAsk increasingly difficult follow-up questions on this specific topic."
+            if kb_active:
+                try:
+                    kb_results = kb_active.search(topic["name"], limit=5)
+                    if kb_results:
+                        kb_teaching_text = "\n\n".join(r["content"][:600] for r in kb_results)
+                except Exception:
+                    pass
         elif mode == "mock":
             mode_hint = f"\nMode: Mock Interview -- Domain: {syllabus.get_domain_name(domain)}\nConduct a full realistic interview simulation."
+            # OPT-2: give the interviewer a KB cheat-sheet for this problem
+            if kb_active and topic:
+                try:
+                    kb_results = kb_active.search(topic["name"], limit=5)
+                    if kb_results:
+                        mock_reference_text = "\n\n".join(r["content"][:700] for r in kb_results)
+                except Exception:
+                    pass
 
         # Map to prompt template key
         if mode == "mock":
@@ -164,6 +180,7 @@ def main():
             topic_id=topic["id"] if topic else "",
             topic_name=topic["name"] if topic else "",
             kb_teaching_context=kb_teaching_text,
+            mock_reference_context=mock_reference_text,
         )
 
         # Run session

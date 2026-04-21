@@ -62,6 +62,30 @@ class Scorer:
         if len(history) < 3:
             return []
 
+        # Accept either List[Message] (from Coach.history) or List[dict]
+        # {role, content} (from e2e/harness transcripts). Normalize to Message
+        # with OpenAI-compatible roles so any adapter can consume it: the
+        # party being evaluated (candidate) → "user", everyone else → "assistant".
+        normalized: list = []
+        for item in history:
+            if isinstance(item, Message):
+                normalized.append(item)
+                continue
+            if not isinstance(item, dict):
+                continue
+            raw_role = (item.get("role") or "").lower()
+            content = item.get("content") or ""
+            if raw_role in {"system", "user", "assistant"}:
+                role = raw_role
+            elif raw_role in {"coach", "interviewer", "teacher"}:
+                role = "assistant"
+            else:
+                # Treat any other role (junior/intermediate/senior/candidate/...)
+                # as the learner being scored.
+                role = "user"
+            normalized.append(Message(role=role, content=content))
+        history = normalized
+
         # Get rubric for this domain
         domain = topic_id.split(".")[0] if topic_id else "system_design"
         try:

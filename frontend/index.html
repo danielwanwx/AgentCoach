@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en" class="snap">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AgentCoach</title>
+  <link rel="stylesheet" href="/assets/app.css" />
+</head>
+<body>
+  <div class="landing">
+    <div class="top-bar">
+      <div class="brand">AgentCoach</div>
+      <div id="status">· ready</div>
+    </div>
+
+    <div class="stepper" id="stepper">
+      <div class="dot active" data-target="scene-mode"></div>
+      <div class="dot" data-target="scene-topic"></div>
+      <div class="dot" data-target="scene-identity"></div>
+    </div>
+
+    <div class="scenes" id="scenes">
+
+      <!-- Scene 1 · mode -->
+      <section class="scene" id="scene-mode" data-step="0">
+        <div class="scene-head">
+          <div class="eyebrow">Step 1 · mode</div>
+          <h2>How would you like to <em>practice</em>?</h2>
+          <p class="subtle">Pick the shape of today's session. Scroll on when you're ready.</p>
+        </div>
+
+        <div class="mode-grid" id="modes">
+          <button class="mode-card module" data-mode="learn">
+            <span class="mc-num">01</span>
+            <span class="mc-title">Learn</span>
+            <span class="mc-desc">Guided walk-through of a concept with the coach narrating and quizzing as you go.</span>
+            <span class="mc-arrow">→</span>
+          </button>
+          <button class="mode-card module" data-mode="reinforce">
+            <span class="mc-num">02</span>
+            <span class="mc-title">Reinforce</span>
+            <span class="mc-desc">Short recall-style drills on topics you have touched before. Sharpens memory.</span>
+            <span class="mc-arrow">→</span>
+          </button>
+          <button class="mode-card module active" data-mode="mock_system_design">
+            <span class="mc-num">03</span>
+            <span class="mc-title">Mock interview</span>
+            <span class="mc-desc">A realistic 12-turn system-design interview. Your voice, their rubric.</span>
+            <span class="mc-arrow">→</span>
+          </button>
+        </div>
+
+        <a class="scene-cue ready" data-action="next" data-next="scene-topic">
+          <span>Scroll to continue</span>
+          <span class="chev">↓</span>
+        </a>
+      </section>
+
+      <!-- Scene 2 · topic -->
+      <section class="scene" id="scene-topic" data-step="1">
+        <div class="scene-head">
+          <div class="eyebrow">Step 2 · topic</div>
+          <h2>Choose a <em>topic</em>.</h2>
+          <p class="subtle">One brief per scene. Arrow through options or use ← →.</p>
+        </div>
+
+        <div class="topic-stage">
+          <button class="arrow left" id="topicPrev" aria-label="previous topic">‹</button>
+          <div class="topic-card module" id="topicCard">
+            <div>
+              <div class="tc-domain" id="topicDomain">System Design</div>
+              <h3 class="tc-name" id="topicName">Loading…</h3>
+            </div>
+            <div class="tc-meta">
+              <span id="topicIndex">—</span>
+              <span class="sep">/</span>
+              <span id="topicTotal">—</span>
+            </div>
+          </div>
+          <button class="arrow right" id="topicNext" aria-label="next topic">›</button>
+        </div>
+
+        <div class="topic-counter" id="topicHint">use ← → to browse</div>
+
+        <a class="scene-cue ready" data-action="next" data-next="scene-identity">
+          <span>Continue</span>
+          <span class="chev">↓</span>
+        </a>
+      </section>
+
+      <!-- Scene 3 · identity + begin -->
+      <section class="scene" id="scene-identity" data-step="2">
+        <div class="scene-head">
+          <div class="eyebrow">Step 3 · identity</div>
+          <h2>Before we begin,<br/>what should we call you?</h2>
+          <p class="subtle">Optional. We use it to track your skill trajectory across sessions.</p>
+        </div>
+
+        <div class="identity">
+          <input type="text" id="user" autocomplete="off" placeholder="your name" />
+          <button class="begin" id="begin" disabled>Begin session</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <script type="module" src="/assets/glow.js"></script>
+  <script type="module">
+    import { api } from "/assets/api.js";
+
+    const state = {
+      step: 0,
+      mode: "mock_system_design",
+      topics: [],
+      topicIdx: 0,
+      user: "web-guest",
+    };
+
+    const scenes = Array.from(document.querySelectorAll(".scene"));
+    const dots = Array.from(document.querySelectorAll(".stepper .dot"));
+    const beginEl = document.getElementById("begin");
+    const statusEl = document.getElementById("status");
+    const userEl = document.getElementById("user");
+
+    // Smooth-scroll to a scene by id
+    function scrollToScene(id) {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    // "Continue" cues + stepper dots both trigger smooth scroll
+    document.body.addEventListener("click", (e) => {
+      const cue = e.target.closest(".scene-cue[data-next]");
+      if (cue) { scrollToScene(cue.dataset.next); return; }
+      const dot = e.target.closest(".stepper .dot[data-target]");
+      if (dot) { scrollToScene(dot.dataset.target); }
+    });
+
+    // Track active scene for stepper dots
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.intersectionRatio > 0.55) {
+          const i = scenes.indexOf(entry.target);
+          if (i >= 0) {
+            state.step = i;
+            dots.forEach((d, j) => {
+              d.classList.toggle("active", j === i);
+              d.classList.toggle("past", j < i);
+            });
+            if (i === 2) {
+              beginEl.disabled = !(state.mode && state.topics.length);
+              setTimeout(() => userEl.focus({ preventScroll: true }), 250);
+            }
+          }
+        }
+      });
+    }, { threshold: [0.55] });
+    scenes.forEach((s) => obs.observe(s));
+
+    // Mode selection — clicking a card also advances the narrative
+    document.getElementById("modes").addEventListener("click", (e) => {
+      const card = e.target.closest(".mode-card");
+      if (!card) return;
+      document.querySelectorAll(".mode-card").forEach((c) => c.classList.remove("active"));
+      card.classList.add("active");
+      state.mode = card.dataset.mode;
+    });
+
+    // Topic carousel
+    const topicName = document.getElementById("topicName");
+    const topicDomain = document.getElementById("topicDomain");
+    const topicIndex = document.getElementById("topicIndex");
+    const topicTotal = document.getElementById("topicTotal");
+    const topicPrev = document.getElementById("topicPrev");
+    const topicNext = document.getElementById("topicNext");
+
+    function renderTopic() {
+      if (!state.topics.length) {
+        topicName.textContent = "No topics available";
+        topicDomain.textContent = "—";
+        return;
+      }
+      const t = state.topics[state.topicIdx];
+      topicName.textContent = t.name;
+      topicDomain.textContent = (t.domain || "system design").replace(/_/g, " ");
+      topicIndex.textContent = String(state.topicIdx + 1).padStart(2, "0");
+      topicTotal.textContent = String(state.topics.length).padStart(2, "0");
+      topicPrev.disabled = state.topicIdx === 0;
+      topicNext.disabled = state.topicIdx === state.topics.length - 1;
+    }
+    topicPrev.addEventListener("click", () => { state.topicIdx = Math.max(0, state.topicIdx - 1); renderTopic(); });
+    topicNext.addEventListener("click", () => { state.topicIdx = Math.min(state.topics.length - 1, state.topicIdx + 1); renderTopic(); });
+
+    beginEl.addEventListener("click", () => {
+      if (beginEl.disabled) return;
+      const params = new URLSearchParams({
+        mode: state.mode,
+        topic_id: state.topics[state.topicIdx]?.id || "system_design.url_shortener",
+        user_id: userEl.value.trim() || "web-guest",
+      });
+      location.href = `/session.html?${params.toString()}`;
+    });
+
+    // Keyboard: arrows browse topics when in scene 2; Enter scrolls onward
+    window.addEventListener("keydown", (e) => {
+      if (state.step === 1) {
+        if (e.key === "ArrowLeft")  { topicPrev.click(); return; }
+        if (e.key === "ArrowRight") { topicNext.click(); return; }
+      }
+      if (e.key === "Enter") {
+        if (state.step === 0) scrollToScene("scene-topic");
+        else if (state.step === 1) scrollToScene("scene-identity");
+        else if (state.step === 2 && !beginEl.disabled) beginEl.click();
+      }
+    });
+
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+    window.addEventListener("load", () => window.scrollTo({ top: 0, behavior: "instant" }));
+
+    async function init() {
+      try {
+        const { topics } = await api.getTopics();
+        state.topics = topics || [];
+        if (!state.topics.length) throw new Error("empty topic list");
+        renderTopic();
+        statusEl.textContent = "· ready";
+      } catch (err) {
+        statusEl.textContent = "· offline — demo mode";
+        state.topics = [
+          { id: "system_design.url_shortener", name: "URL Shortener", domain: "system_design" },
+          { id: "system_design.chat", name: "Design a Chat System", domain: "system_design" },
+        ];
+        renderTopic();
+      }
+    }
+    init();
+  </script>
+</body>
+</html>

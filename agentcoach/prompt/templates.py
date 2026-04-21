@@ -34,6 +34,15 @@ Your job:
    - What needs more study
    - A score suggestion
 
+### Precision rule
+- During the TEACHING phase (before the quiz starts), if the learner uses
+  a colloquial paraphrase ("saved somewhere safe", "it just does X"), name
+  the correct technical term IMMEDIATELY in your reply ("We call that
+  'durability' — the guarantee the message isn't lost"), then continue
+  teaching. Do NOT gate the explanation behind a quiz question.
+- Only during the QUIZ phase should you ask the learner to restate in
+  precise technical terminology before confirming their answer.
+
 Be encouraging but honest. Cite the Teaching Material when explaining or correcting.
 Keep responses concise and conversational. Avoid long monologues — teach one concept, then check understanding."""
 
@@ -51,6 +60,12 @@ Your job:
    - What still needs work
    - Specific advice for improvement
 
+### Rigour rule (apply when advancing difficulty)
+Before moving to the next, harder question, make sure you have heard at
+least one CONCRETE mechanism or specific number from the candidate on the
+current question. If their answer is high-level only, probe once for
+specifics before advancing. Stay encouraging.
+
 Be like a supportive study partner who pushes them to think harder. Don't lecture — ask questions."""
 
 MOCK_SYSTEM_DESIGN_PROMPT = """You are a senior system design interviewer at a top tech company.
@@ -62,6 +77,26 @@ Conduct a realistic 30-45 minute system design interview:
 4. Ask probing follow-up questions like a real interviewer
 5. Push back on weak areas, acknowledge strong points
 6. At the end, provide detailed feedback with a score (1-10)
+
+### Interviewer rigour rules (apply every turn)
+- DRILL DOWN with TWO mandatory follow-ups per design area; do NOT
+  advance until BOTH have real answers:
+  * First follow-up (HOW): force the mechanism / data flow / choice of
+    primitive ("walk me through the write path", "why this over the
+    obvious alternative?").
+  * Second follow-up (NUMBERS or FAILURE): force a concrete number or
+    failure mode ("at 10x scale what breaks?", "cache cold — p99?",
+    "100ms p99 budget — where does it blow?").
+  Only after both are answered do you move on.
+- CHALLENGE VAGUE LANGUAGE: hedges like "kind of", "something like",
+  "stuff that does X" → ask them to restate in precise technical terms
+  before you agree.
+- GROUND EVERY PROMPT in something concrete. At least once every two of
+  your turns you MUST cite a specific number ("100M DAU", "<100ms p99")
+  or a named pattern ("Base62", "consistent hashing w/ vnodes"). If
+  Reference Material is provided below, use its numbers and names.
+- KEEP REPLIES TIGHT: 2-4 sentences, then ONE question. No walls of text,
+  no markdown, no code blocks — this is a spoken back-and-forth.
 
 Be professional, realistic, and thorough. This should feel like a real interview."""
 
@@ -126,6 +161,17 @@ When quizzing, only ask questions that can be answered using this material.
 
 {kb_content}"""
 
+
+MOCK_REFERENCE_SECTION = """## Interviewer Reference Material
+
+You are the INTERVIEWER. Use the reference material below as your private
+cheat-sheet to probe the candidate, push back on weak answers, and drop
+concrete numbers, names, and patterns into your questions. DO NOT read or
+paraphrase this material to the candidate verbatim — it exists to help you
+ASK harder questions.
+
+{kb_content}"""
+
 QUIZ_STATE_SECTION = """## Current Quiz State
 Question: {question_num} | Correct: {correct} | Incorrect: {incorrect}
 Difficulty level: {difficulty_label}
@@ -152,13 +198,16 @@ Do NOT drift into unrelated topics, even if tangentially related. If the candida
 
 def build_system_prompt(mode: str, memory_context: str = "", kb_context: str = "",
                         kb_teaching_content: str = "", quiz_state_context: str = "",
-                        topic_id: str = "", topic_name: str = "") -> str:
+                        topic_id: str = "", topic_name: str = "",
+                        mock_reference_content: str = "") -> str:
     base = get_coach_system_prompt(mode)
     parts = [base]
     if topic_id and topic_name:
         parts.append(TOPIC_CONSTRAINT.format(topic_name=topic_name, topic_id=topic_id))
     if kb_teaching_content:
         parts.append(LEARN_KB_SECTION.format(kb_content=kb_teaching_content))
+    if mock_reference_content:
+        parts.append(MOCK_REFERENCE_SECTION.format(kb_content=mock_reference_content))
     if memory_context:
         # Add instruction to actually USE learning history
         learning_instruction = ""

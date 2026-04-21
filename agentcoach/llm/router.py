@@ -37,6 +37,11 @@ def create_provider(provider_name: str, api_key: str, model: str = "") -> LLMAda
     elif provider_name == "gemini":
         from agentcoach.llm.providers.gemini_provider import GeminiProvider
         return GeminiProvider(api_key=api_key, model=model or "gemini-2.0-flash")
+    elif provider_name in ("ollama", "ollama-small"):
+        # Native Ollama endpoint — handles think:false for Gemma 4 etc.
+        from agentcoach.llm.providers.ollama_provider import OllamaProvider
+        default_model = "gemma4:e4b" if provider_name == "ollama-small" else "gemma4:31b"
+        return OllamaProvider(model=model or default_model)
     else:
         # Fall back to OpenAI-compatible adapter (minimax, deepseek, etc.)
         from agentcoach.llm.openai_compat import OpenAICompatAdapter

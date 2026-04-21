@@ -5,3 +5,13 @@ __pycache__/
 dist/
 build/
 .venv/
+.web_state/
+
+# Local agent / tooling caches
+.claude/
+.round2/
+
+# E2E run artifacts & logs
+e2e_report_*.json
+e2e_run*.log
+verify_skills_*.log

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AgentCoach · session</title>
+  <link rel="stylesheet" href="/assets/app.css" />
+</head>
+<body>
+  <div class="app session">
+    <div class="top-bar">
+      <div id="meta">· session</div>
+      <button class="close-x" id="close" title="End session">×</button>
+    </div>
+
+    <div class="wave-wrap">
+      <div class="dot" id="dot" title="active speaker"></div>
+      <canvas id="wave"></canvas>
+    </div>
+
+    <div class="lyrics" id="lyrics">
+      <div class="line past-2"></div>
+      <div class="line past-1"></div>
+      <div class="line current"></div>
+    </div>
+
+    <div class="session-controls">
+      <button id="tap-talk">hold space or tap to talk</button>
+    </div>
+  </div>
+
+  <!-- Survey modal -->
+  <div class="modal-bg" id="modal">
+    <div class="modal module">
+      <h2>How did that feel?</h2>
+      <p class="muted">One breath, then we'll show you a report.</p>
+
+      <div class="survey-q">
+        <label>Was the coach useful?</label>
+        <div class="stars" data-q="useful">
+          <span class="star" data-v="1">✦</span>
+          <span class="star" data-v="2">✦</span>
+          <span class="star" data-v="3">✦</span>
+          <span class="star" data-v="4">✦</span>
+          <span class="star" data-v="5">✦</span>
+        </div>
+      </div>
+
+      <div class="survey-q">
+        <label>Was the difficulty right?</label>
+        <div class="stars" data-q="difficulty">
+          <span class="star" data-v="1">✦</span><span class="star" data-v="2">✦</span>
+          <span class="star" data-v="3">✦</span><span class="star" data-v="4">✦</span>
+          <span class="star" data-v="5">✦</span>
+        </div>
+      </div>
+
+      <div class="survey-q">
+        <label>Did it feel like a real conversation?</label>
+        <div class="stars" data-q="realism">
+          <span class="star" data-v="1">✦</span><span class="star" data-v="2">✦</span>
+          <span class="star" data-v="3">✦</span><span class="star" data-v="4">✦</span>
+          <span class="star" data-v="5">✦</span>
+        </div>
+      </div>
+
+      <div class="survey-q">
+        <label>Would you practice this topic again?</label>
+        <div class="stars" data-q="repeat">
+          <span class="star" data-v="1">✦</span><span class="star" data-v="2">✦</span>
+          <span class="star" data-v="3">✦</span><span class="star" data-v="4">✦</span>
+          <span class="star" data-v="5">✦</span>
+        </div>
+      </div>
+
+      <div class="survey-q">
+        <label>One word that describes how this went?</label>
+        <input type="text" id="survey-word" placeholder="" />
+      </div>
+
+      <button class="submit" id="submit">See my report</button>
+    </div>
+  </div>
+
+  <script type="module" src="/assets/glow.js"></script>
+  <script type="module" src="/assets/session.js"></script>
+</body>
+</html>
