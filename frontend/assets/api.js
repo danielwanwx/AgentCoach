@@ -1,9 +1,12 @@
-/* Tiny JSON client for the AgentCoach web backend with offline fallback.
+/* Tiny JSON client for the AgentCoach web backend.
  *
- * When the backend is not reachable OR ?demo=1 is present in the URL, we
- * substitute a scripted coach and a plausible scoring stub so the UI can
- * be explored without the python server running. The data shape is the
- * same in both paths — the UI never branches on source. */
+ * MODES:
+ *   - LIVE   (default): every call hits the real Python backend. Errors
+ *            are surfaced to the UI; we do NOT silently fake responses.
+ *   - DEMO   (?demo=1 in URL, OR `/api/health` reports live=false):
+ *            scripted coach + stub scoring so the UI is explorable
+ *            without an LLM. Always opt-in or explicitly health-gated —
+ *            it never sneaks on after a transient request error. */
 
 const DEMO_OPENINGS = {
   learn: "Let's learn URL shorteners from the ground up. What do you already know about them?",
@@ -67,24 +70,50 @@ function isDemoRequested() {
 
 async function tryFetch(path, opts) {
   const res = await fetch(path, opts);
-  if (!res.ok) throw new Error(`${path} → ${res.status}`);
-  return res.json();
+  let body;
+  try { body = await res.json(); } catch (_) { body = {}; }
+  if (!res.ok) {
+    const e = new Error(body?.detail || body?.error || `${path} → HTTP ${res.status}`);
+    e.status = res.status; e.body = body;
+    throw e;
+  }
+  // Backend may return 200 with an `error` key for "expected" coach
+  // failures (e.g. LLM hiccups mid-turn). Treat those as errors here so
+  // they bubble up to the UI rather than silently rendering ""
+  if (body && body.error) {
+    const e = new Error(body.detail || body.error);
+    e.body = body;
+    throw e;
+  }
+  return body;
 }
 
 let demoMode = isDemoRequested();
 let demoTurn = 0;
+let healthCache = null;
 
 export const api = {
   get demo() { return demoMode; },
+  get health() { return healthCache; },
+
+  // Resolve once at boot. The status badge in the landing UI uses this.
+  async checkHealth() {
+    if (demoMode) {
+      healthCache = { live: false, demo: true, provider: "demo", model: "scripted" };
+      return healthCache;
+    }
+    try {
+      healthCache = await tryFetch("/api/health");
+    } catch (e) {
+      healthCache = { live: false, demo: false, error: e.message };
+    }
+    if (!healthCache.live) demoMode = true;
+    return healthCache;
+  },
 
   async getTopics() {
     if (demoMode) return { topics: DEMO_TOPICS };
-    try {
-      return await tryFetch("/api/topics");
-    } catch (e) {
-      demoMode = true;
-      return { topics: DEMO_TOPICS };
-    }
+    return tryFetch("/api/topics");
   },
 
   async startSession({ mode, topic_id, user_id }) {
@@ -94,19 +123,14 @@ export const api = {
         session_id: "demo-" + Math.random().toString(36).slice(2, 8),
         opening: DEMO_OPENINGS[mode] || DEMO_OPENINGS.mock_system_design,
         topic_id, topic_name: (DEMO_TOPICS.find((t) => t.id === topic_id) || {}).name || "URL Shortener",
-        mode,
+        mode, live: false,
       };
     }
-    try {
-      return await tryFetch("/api/session/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, topic_id, user_id }),
-      });
-    } catch (e) {
-      demoMode = true;
-      return this.startSession({ mode, topic_id, user_id });
-    }
+    return tryFetch("/api/session/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode, topic_id, user_id }),
+    });
   },
 
   async turn({ session_id, user_text }) {
@@ -115,42 +139,27 @@ export const api = {
       demoTurn += 1;
       return { coach_text: line };
     }
-    try {
-      return await tryFetch("/api/session/turn", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id, user_text }),
-      });
-    } catch (e) {
-      demoMode = true;
-      return this.turn({ session_id, user_text });
-    }
+    return tryFetch("/api/session/turn", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id, user_text }),
+    });
   },
 
   async end({ session_id, survey }) {
     if (demoMode) {
       return { session_id, ...DEMO_ASSESSMENT, survey };
     }
-    try {
-      return await tryFetch("/api/session/end", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id, survey }),
-      });
-    } catch (e) {
-      demoMode = true;
-      return this.end({ session_id, survey });
-    }
+    return tryFetch("/api/session/end", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id, survey }),
+    });
   },
 
   async report(session_id) {
     if (demoMode) return { session_id, ...DEMO_ASSESSMENT };
-    try {
-      return await tryFetch(`/api/session/${session_id}/report`);
-    } catch (e) {
-      demoMode = true;
-      return this.report(session_id);
-    }
+    return tryFetch(`/api/session/${session_id}/report`);
   },
 };
 

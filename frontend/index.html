@@ -218,15 +218,33 @@
     if ("scrollRestoration" in history) history.scrollRestoration = "manual";
     window.addEventListener("load", () => window.scrollTo({ top: 0, behavior: "instant" }));
 
+    function paintStatus(h) {
+      // Three states: live / demo (opt-in) / offline (LLM unreachable).
+      // Show the actual provider+model so the user can confirm at a glance
+      // exactly which coach is on the other end of the wire.
+      if (h?.live) {
+        statusEl.textContent = `● live · ${h.provider}/${h.model}`;
+        statusEl.className = "status live";
+      } else if (h?.demo) {
+        statusEl.textContent = "○ demo · scripted coach";
+        statusEl.className = "status demo";
+      } else {
+        const why = h?.error ? ` — ${h.error}` : "";
+        statusEl.textContent = `△ offline${why}`;
+        statusEl.className = "status offline";
+        statusEl.title = h?.error || "backend unreachable";
+      }
+    }
+
     async function init() {
+      const h = await api.checkHealth();
+      paintStatus(h);
       try {
         const { topics } = await api.getTopics();
         state.topics = topics || [];
         if (!state.topics.length) throw new Error("empty topic list");
         renderTopic();
-        statusEl.textContent = "· ready";
       } catch (err) {
-        statusEl.textContent = "· offline — demo mode";
         state.topics = [
           { id: "system_design.url_shortener", name: "URL Shortener", domain: "system_design" },
           { id: "system_design.chat", name: "Design a Chat System", domain: "system_design" },

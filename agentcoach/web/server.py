@@ -80,36 +80,94 @@ class WebSession:
 class ServerState:
     """Shared process-wide state; instantiated once per server."""
 
-    def __init__(self, data_dir: Path, demo_mode: bool = False):
+    def __init__(
+        self,
+        data_dir: Path,
+        demo_mode: bool = False,
+        coach_provider: Optional[str] = None,
+        coach_model: Optional[str] = None,
+    ):
         data_dir.mkdir(parents=True, exist_ok=True)
         self.data_dir = data_dir
         self.demo_mode = demo_mode
+        self.coach_provider = coach_provider
+        self.coach_model = coach_model
         self.analytics = AnalyticsStore(db_path=str(data_dir / "analytics.db"))
         self.sessions: dict[str, WebSession] = {}
         self.lock = threading.Lock()
         self.syllabus = SyllabusLoader()
         self._coach_llm = None
         self._scorer_llm = None
+        self._llm_init_error: Optional[str] = None
+        # Eagerly initialize the coach LLM so the operator sees connectivity
+        # status immediately at startup rather than at first session open.
+        if not demo_mode:
+            self.coach_llm()
 
-    # Lazy LLM init so a missing key does NOT crash startup — only kicks in
-    # the first time someone actually opens a real (non-demo) session.
     def coach_llm(self):
-        if self._coach_llm is None:
-            self._coach_llm = _make_llm(role="coaching")
+        if self._coach_llm is None and self._llm_init_error is None:
+            self._coach_llm = _make_llm(
+                role="coaching",
+                provider=self.coach_provider,
+                model=self.coach_model,
+                on_error=lambda msg: setattr(self, "_llm_init_error", msg),
+            )
         return self._coach_llm
 
     def scorer_llm(self):
         if self._scorer_llm is None:
-            self._scorer_llm = _make_llm(role="scoring")
+            # Reuse coach LLM for scoring when no separate scorer is wired —
+            # the e2e harness does the same. Avoids forcing two model loads.
+            self._scorer_llm = _make_llm(
+                role="scoring",
+                provider=self.coach_provider,
+                model=self.coach_model,
+                on_error=lambda msg: None,
+            ) or self._coach_llm
         return self._scorer_llm
 
+    def health(self) -> dict:
+        """One-shot reachability check used by /api/health and at startup."""
+        if self.demo_mode:
+            return {"live": False, "demo": True, "provider": None, "model": None}
+        if self._llm_init_error:
+            return {
+                "live": False, "demo": False,
+                "provider": self.coach_provider, "model": self.coach_model,
+                "error": self._llm_init_error,
+            }
+        llm = self._coach_llm
+        if llm is None:
+            return {"live": False, "demo": False, "error": "llm not initialized"}
+        provider = self.coach_provider or os.getenv("LLM_PROVIDER") or "default"
+        model = self.coach_model or getattr(llm, "model", "") or os.getenv("LLM_MODEL") or "default"
+        # Optional ping: a tiny generation. Cheap on Ollama, may cost a token
+        # on cloud — gated by query param so /api/health stays free by default.
+        return {"live": True, "demo": False, "provider": provider, "model": model}
 
-def _make_llm(role: str):
+
+def _make_llm(role: str, provider: Optional[str] = None,
+              model: Optional[str] = None, on_error=None):
+    """Create an LLM, honoring CLI overrides on top of LLMRouter.from_env().
+
+    When ``provider``/``model`` are passed (from CLI), they win over the
+    env-driven defaults so the web server can be told "use ollama gemma4:e4b"
+    without polluting the user's shell environment.
+    """
     try:
-        from agentcoach.llm.router import LLMRouter
+        from agentcoach.llm.router import LLMRouter, create_provider
+        if provider:
+            adapter = create_provider(
+                provider, api_key=os.getenv("LLM_API_KEY", "not-needed"),
+                model=model or "",
+            )
+            return adapter
         return LLMRouter.from_env().get(role)
     except Exception as e:
-        logger.warning("llm_init_failed", role=role, error=str(e))
+        msg = f"{type(e).__name__}: {e}"
+        logger.warning("llm_init_failed", role=role, error=msg)
+        if on_error:
+            on_error(msg)
         return None
 
 
@@ -230,7 +288,13 @@ def _start_session(state: ServerState, body: dict) -> dict:
     )
 
     llm = state.coach_llm()
-    if llm is None or state.demo_mode:
+    live_mode = llm is not None and not state.demo_mode
+
+    if not live_mode:
+        # Demo / fallback path. Only used when the operator explicitly
+        # passed --demo OR when LLM init genuinely failed (in which case
+        # /api/health surfaces the underlying error so the UI badge can
+        # show "demo — LLM unreachable" instead of silently lying).
         ws.opening = (
             f"Great — let's work on {topic_name}. "
             "Walk me through how you'd start."
@@ -252,11 +316,17 @@ def _start_session(state: ServerState, body: dict) -> dict:
             ws.opening = coach.start()
             ws.coach = coach
         except Exception as e:
+            # The LLM was supposed to work but the start call blew up
+            # (network down mid-session, model unloaded, etc). Surface
+            # the real reason — the UI will show this and stop pretending.
             logger.error("coach_start_failed", error=str(e))
-            ws.opening = (
-                f"Let's get started on {topic_name}. "
-                "Can you walk me through the core requirements first?"
-            )
+            with state.lock:
+                state.sessions[session_id] = ws
+            return {
+                "error": "coach_start_failed",
+                "detail": f"{type(e).__name__}: {e}",
+                "session_id": session_id,
+            }
 
     with state.lock:
         state.sessions[session_id] = ws
@@ -266,6 +336,7 @@ def _start_session(state: ServerState, body: dict) -> dict:
         "topic_id": topic_id,
         "topic_name": topic_name,
         "mode": mode,
+        "live": live_mode,
     }
 
 
@@ -293,7 +364,12 @@ def _turn(state: ServerState, body: dict) -> dict:
         reply = ws.coach.respond(text)
     except Exception as e:
         logger.error("coach_respond_failed", error=str(e))
-        reply = "Let me rephrase — can you tell me more about your high-level design?"
+        # Real error → return 200 with explicit error key so the frontend
+        # can surface it. We don't fake a coach reply anymore.
+        return {
+            "error": "coach_respond_failed",
+            "detail": f"{type(e).__name__}: {e}",
+        }
     return {"coach_text": reply}
 
 
@@ -434,6 +510,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):  # noqa: N802
         path = urlparse(self.path).path
+        if path == "/api/health":
+            return _write_json(self, 200, self.state.health())
         if path == "/api/topics":
             return _write_json(self, 200, {"topics": TOPICS, "modes": MODES})
         if path.startswith("/api/session/") and path.endswith("/report"):
@@ -456,18 +534,40 @@ class Handler(BaseHTTPRequestHandler):
         _write_json(self, 404, {"error": "not found"})
 
 
-def serve(port: int = 8765, data_dir: Optional[Path] = None, demo: bool = False) -> None:
+def serve(
+    port: int = 8765,
+    data_dir: Optional[Path] = None,
+    demo: bool = False,
+    coach_provider: Optional[str] = None,
+    coach_model: Optional[str] = None,
+) -> None:
     data_dir = data_dir or (ROOT / ".web_state")
-    state = ServerState(data_dir=data_dir, demo_mode=demo)
+    state = ServerState(
+        data_dir=data_dir, demo_mode=demo,
+        coach_provider=coach_provider, coach_model=coach_model,
+    )
 
     class BoundHandler(Handler):
         pass
 
     BoundHandler.state = state
     httpd = ThreadingHTTPServer(("127.0.0.1", port), BoundHandler)
-    print(f"AgentCoach web UI running at http://127.0.0.1:{port}/")
-    print(f"  data dir: {data_dir}")
-    print(f"  demo mode: {demo}")
+    h = state.health()
+    badge = (
+        "DEMO mode (scripted coach)"
+        if demo else
+        f"LIVE  · {h.get('provider')}/{h.get('model')}"
+        if h.get("live") else
+        f"OFFLINE — LLM init failed: {h.get('error')}"
+    )
+    print("─" * 64)
+    print(f"AgentCoach web UI  →  http://127.0.0.1:{port}/")
+    print(f"  data dir : {data_dir}")
+    print(f"  status   : {badge}")
+    print("─" * 64)
+    if not demo and not h.get("live"):
+        print("HINT: pass --coach-provider ollama --coach-model gemma4:e4b")
+        print("      or set LLM_PROVIDER / LLM_MODEL / LLM_API_KEY in env.")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -482,11 +582,19 @@ def main() -> None:
     p.add_argument("--data-dir", type=str, default="")
     p.add_argument("--demo", action="store_true",
                    help="Force scripted coach + stub scoring; no LLM needed.")
+    p.add_argument("--coach-provider", type=str, default=os.getenv("AGENTCOACH_COACH_PROVIDER", "ollama"),
+                   help="LLM provider for the live coach (default: ollama). "
+                        "Use 'env' to honor LLMRouter.from_env() instead.")
+    p.add_argument("--coach-model", type=str, default=os.getenv("AGENTCOACH_COACH_MODEL", "gemma4:e4b"),
+                   help="Model name (default: gemma4:e4b — small + fast for browser sessions).")
     args = p.parse_args()
+    provider = None if args.coach_provider == "env" else args.coach_provider
     serve(
         port=args.port,
         data_dir=Path(args.data_dir) if args.data_dir else None,
         demo=args.demo,
+        coach_provider=provider,
+        coach_model=args.coach_model,
     )
 
 

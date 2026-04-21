@@ -183,12 +183,19 @@ async function handleUserUtterance(text) {
   state.turns += 1;
   try {
     const { coach_text } = await api.turn({ session_id: state.session_id, user_text: text });
-    if (!coach_text) return;
-    await speakCoach(coach_text);
+    if (!coach_text) {
+      // No reply but no thrown error — surface as a faint system note
+      // rather than a fake coach sentence. (E.g. demo turn ran out.)
+      pushLyric({ speaker: "coach", text: "(no response)" });
+    } else {
+      await speakCoach(coach_text);
+    }
   } catch (e) {
-    await speakCoach("Let me think about that — can you say a bit more?");
+    // Real backend / LLM error: show it INSTEAD of inventing a coach
+    // line, so the user can see something is wrong and the operator can
+    // diagnose from the lyric panel directly.
+    pushLyric({ speaker: "coach", text: `[coach error] ${e.message || e}` });
   }
-  // After the coach is done, re-open the mic unless the user ended.
   if (!state.ended) setTimeout(startListening, 350);
 }
 
@@ -198,7 +205,21 @@ async function init() {
   metaEl.textContent = `· ${mode.replace("_", " ")} · ${topic_id.split(".").pop().replace(/_/g, " ")}`;
   await wave.attachMic();
 
-  const { session_id, opening, topic_name } = await api.startSession({ mode, topic_id, user_id });
+  // Show health badge in meta strip so the user sees real vs scripted coach.
+  const h = await api.checkHealth();
+  const badge = h?.live ? `LIVE · ${h.model}` : h?.demo ? "DEMO" : "OFFLINE";
+  metaEl.textContent += `  · ${badge}`;
+
+  let opening, session_id, topic_name;
+  try {
+    ({ session_id, opening, topic_name } = await api.startSession({ mode, topic_id, user_id }));
+  } catch (e) {
+    // Hard failure — show it on the lyric panel instead of pretending
+    // we're in a session. The user can refresh once the backend is back.
+    pushLyric({ speaker: "coach", text: `[start failed] ${e.message || e}` });
+    tapEl.textContent = "session failed to start — check the backend";
+    return;
+  }
   state.session_id = session_id;
   state.topic_name = topic_name;
 
