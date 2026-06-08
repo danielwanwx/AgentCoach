@@ -15,10 +15,13 @@ def test_adapter_is_abstract():
 
 
 from unittest.mock import patch, MagicMock
-from agentcoach.llm.gemini import GeminiAdapter
 
 def test_gemini_adapter_generate():
     """GeminiAdapter calls Gemini API and returns text."""
+    import pytest
+    pytest.importorskip("google.generativeai")
+    from agentcoach.llm.gemini import GeminiAdapter
+
     mock_model = MagicMock()
     mock_response = MagicMock()
     mock_response.text = "Tell me about your experience."

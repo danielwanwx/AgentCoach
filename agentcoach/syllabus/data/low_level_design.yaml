@@ -1,0 +1,93 @@
+domain: low_level_design
+name: Low-Level Design
+
+topics:
+  - id: low_level_design.foundations
+    name: Foundations
+    children:
+      - id: low_level_design.oop_concepts
+        name: OOP Concepts
+        difficulty_level: 1
+        prerequisites: []
+        resources:
+          - type: article
+            title: "HelloInterview: OOP Concepts"
+            url: "https://www.hellointerview.com/learn/low-level-design/in-a-hurry/oop-concepts"
+
+      - id: low_level_design.solid_principles
+        name: SOLID Principles
+        difficulty_level: 1
+        prerequisites: [low_level_design.oop_concepts]
+        resources:
+          - type: article
+            title: "HelloInterview: Design Principles"
+            url: "https://www.hellointerview.com/learn/low-level-design/in-a-hurry/design-principles"
+
+      - id: low_level_design.design_patterns
+        name: Design Patterns (GoF)
+        difficulty_level: 2
+        prerequisites: [low_level_design.solid_principles]
+        resources:
+          - type: article
+            title: "HelloInterview: Patterns"
+            url: "https://www.hellointerview.com/learn/low-level-design/in-a-hurry/patterns"
+
+      - id: low_level_design.concurrency
+        name: Concurrency & Coordination
+        difficulty_level: 2
+        prerequisites: [low_level_design.oop_concepts]
+        resources:
+          - type: article
+            title: "HelloInterview: Concurrency"
+            url: "https://www.hellointerview.com/learn/low-level-design/concurrency/intro"
+
+  - id: low_level_design.problems
+    name: Classic Problems
+    children:
+      - id: low_level_design.parking_lot
+        name: Parking Lot
+        difficulty_level: 2
+        prerequisites: [low_level_design.solid_principles]
+        resources:
+          - type: article
+            title: "HelloInterview: Parking Lot"
+            url: "https://www.hellointerview.com/learn/low-level-design/problem-breakdowns/parking-lot"
+
+      - id: low_level_design.elevator
+        name: Elevator System
+        difficulty_level: 2
+        prerequisites: [low_level_design.concurrency]
+        resources:
+          - type: article
+            title: "HelloInterview: Elevator"
+            url: "https://www.hellointerview.com/learn/low-level-design/problem-breakdowns/elevator"
+
+      - id: low_level_design.file_system
+        name: In-Memory File System
+        difficulty_level: 2
+        prerequisites: [low_level_design.design_patterns]
+
+      - id: low_level_design.amazon_locker
+        name: Amazon Locker
+        difficulty_level: 2
+        prerequisites: [low_level_design.design_patterns]
+
+      - id: low_level_design.connect_four
+        name: Connect Four
+        difficulty_level: 1
+        prerequisites: [low_level_design.oop_concepts]
+
+      - id: low_level_design.bookmyshow
+        name: BookMyShow (Ticketing)
+        difficulty_level: 3
+        prerequisites: [low_level_design.concurrency, low_level_design.design_patterns]
+
+      - id: low_level_design.rate_limiter_lld
+        name: Rate Limiter (LLD)
+        difficulty_level: 2
+        prerequisites: [low_level_design.concurrency]
+
+      - id: low_level_design.inventory_management
+        name: Inventory Management
+        difficulty_level: 3
+        prerequisites: [low_level_design.design_patterns]

@@ -41,7 +41,28 @@ class Coach:
 
     def start(self) -> str:
         """Start the interview session. Returns coach's opening message."""
-        if self.kb_teaching_context and self.topic_name:
+        if self.mode == "learn" and self.topic_name:
+            opening = (
+                f"Start Learn mode for {self.topic_name}. I want to learn about "
+                f"{self.topic_name}. Teach the first mental "
+                "model before testing. If I seem new or confused, give me 2-3 "
+                "resource links from the Candidate resource links section and a "
+                "90-second explanation. Ask only one small question at the end."
+            )
+        elif self.mode == "reinforce" and self.topic_name:
+            opening = (
+                f"Start Train mode for {self.topic_name}. Treat this as validation "
+                "after study, not a lecture. Ask one acceptance-check question. If "
+                "I clearly have not studied it, pause the drill and send me to the "
+                "resource links instead of continuing."
+            )
+        elif self.mode == "mock_system_design" and self.topic_name:
+            opening = (
+                f"Start Interview mode for {self.topic_name}. Act like a real "
+                "interviewer. Do not teach unless I explicitly pause the mock; if I "
+                "am blocked, offer to switch to Learn mode and share resources."
+            )
+        elif self.kb_teaching_context and self.topic_name:
             opening = f"Hi, I'm ready to learn about {self.topic_name}. Please teach me using the provided material."
         else:
             opening = "Hi, I'm ready to start the mock interview. Please begin."

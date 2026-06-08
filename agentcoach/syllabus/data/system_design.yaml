@@ -41,6 +41,18 @@ topics:
             title: "Data Modeling for System Design (Gaurav Sen)"
             url: "https://www.youtube.com/watch?v=1jWuFaGJEaQ"
 
+      - id: system_design.numbers_to_know
+        name: Numbers to Know & Capacity Estimation
+        difficulty_level: 1
+        prerequisites: [system_design.networking]
+        resources:
+          - type: article
+            title: "HelloInterview: Numbers to Know"
+            url: "https://www.hellointerview.com/learn/system-design/core-concepts/numbers-to-know"
+          - type: guide
+            title: "ByteByteGo: Capacity Estimation in the 7-Step Framework"
+            url: "https://bytebytego.com/guides/how-to-ace-system-design-interviews-like-a-boss/"
+
       - id: system_design.caching
         name: Caching (Redis, Memcached)
         difficulty_level: 2
@@ -131,6 +143,24 @@ topics:
   - id: system_design.patterns
     name: Patterns
     children:
+      - id: system_design.scaling_reads
+        name: Scaling Reads
+        difficulty_level: 2
+        prerequisites: [system_design.db_indexing, system_design.caching]
+        resources:
+          - type: article
+            title: "HelloInterview: Scaling Reads"
+            url: "https://www.hellointerview.com/learn/system-design/patterns/scaling-reads"
+
+      - id: system_design.scaling_writes
+        name: Scaling Writes
+        difficulty_level: 2
+        prerequisites: [system_design.sharding, system_design.message_queues]
+        resources:
+          - type: article
+            title: "HelloInterview: Scaling Writes"
+            url: "https://www.hellointerview.com/learn/system-design/patterns/scaling-writes"
+
       - id: system_design.rate_limiting
         name: Rate Limiting
         difficulty_level: 2
@@ -158,6 +188,51 @@ topics:
             title: "Event Sourcing Explained (CodeOpinion)"
             url: "https://www.youtube.com/watch?v=AUj4M-st3ic"
 
+      - id: system_design.realtime_updates
+        name: Realtime Updates
+        difficulty_level: 2
+        prerequisites: [system_design.networking, system_design.message_queues]
+        resources:
+          - type: article
+            title: "HelloInterview: Realtime Updates"
+            url: "https://www.hellointerview.com/learn/system-design/patterns/realtime-updates"
+
+      - id: system_design.long_running_tasks
+        name: Managing Long-Running Tasks
+        difficulty_level: 2
+        prerequisites: [system_design.message_queues]
+        resources:
+          - type: article
+            title: "HelloInterview: Managing Long Running Tasks"
+            url: "https://www.hellointerview.com/learn/system-design/patterns/long-running-tasks"
+
+      - id: system_design.dealing_with_contention
+        name: Dealing with Contention
+        difficulty_level: 3
+        prerequisites: [system_design.data_modeling, system_design.cap_theorem]
+        resources:
+          - type: article
+            title: "HelloInterview: Dealing with Contention"
+            url: "https://www.hellointerview.com/learn/system-design/patterns/dealing-with-contention"
+
+      - id: system_design.large_blobs
+        name: Large Blobs
+        difficulty_level: 2
+        prerequisites: [system_design.caching, system_design.load_balancing]
+        resources:
+          - type: article
+            title: "HelloInterview: Large Blobs"
+            url: "https://www.hellointerview.com/learn/system-design/patterns/large-blobs"
+
+      - id: system_design.multi_step_processes
+        name: Multi-Step Processes
+        difficulty_level: 3
+        prerequisites: [system_design.long_running_tasks, system_design.event_sourcing]
+        resources:
+          - type: article
+            title: "HelloInterview: Multi-Step Processes"
+            url: "https://www.hellointerview.com/learn/system-design/patterns/multi-step-processes"
+
       - id: system_design.leader_election
         name: Leader Election
         difficulty_level: 3
@@ -171,37 +246,162 @@ topics:
     name: Problem Breakdowns
     children:
       - id: system_design.url_shortener
-        name: Design URL Shortener
+        name: URL Shortener (Bitly)
         difficulty_level: 2
         prerequisites: [system_design.caching, system_design.db_indexing]
         resources:
+          - type: article
+            title: "HelloInterview: Bitly Breakdown"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/bitly"
           - type: video
             title: "Design TinyURL (NeetCode)"
             url: "https://www.youtube.com/watch?v=fMZMm_0ZhK4"
 
+      - id: system_design.distributed_rate_limiter
+        name: Distributed Rate Limiter
+        difficulty_level: 3
+        prerequisites: [system_design.rate_limiting, system_design.caching]
+        resources:
+          - type: article
+            title: "HelloInterview: Distributed Rate Limiter"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/distributed-rate-limiter"
+
+      - id: system_design.ticketmaster
+        name: Ticketmaster
+        difficulty_level: 3
+        prerequisites: [system_design.caching, system_design.sharding]
+        resources:
+          - type: article
+            title: "HelloInterview: Ticketmaster"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/ticketmaster"
+
+      - id: system_design.top_k
+        name: Top-K (Leaderboards)
+        difficulty_level: 2
+        prerequisites: [system_design.caching]
+        resources:
+          - type: article
+            title: "HelloInterview: Top-K"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/top-k"
+
+      - id: system_design.ad_click_aggregator
+        name: Ad Click Aggregator
+        difficulty_level: 3
+        prerequisites: [system_design.message_queues]
+        resources:
+          - type: article
+            title: "HelloInterview: Ad Click Aggregator"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/ad-click-aggregator"
+
+      - id: system_design.web_crawler
+        name: Web Crawler
+        difficulty_level: 3
+        prerequisites: [system_design.message_queues, system_design.sharding]
+        resources:
+          - type: article
+            title: "HelloInterview: Web Crawler"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/web-crawler"
+
+      - id: system_design.job_scheduler
+        name: Distributed Job Scheduler
+        difficulty_level: 3
+        prerequisites: [system_design.message_queues, system_design.leader_election]
+        resources:
+          - type: article
+            title: "HelloInterview: Job Scheduler"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/job-scheduler"
+
+      - id: system_design.payment_system
+        name: Payment System
+        difficulty_level: 3
+        prerequisites: [system_design.message_queues, system_design.event_sourcing]
+        resources:
+          - type: article
+            title: "HelloInterview: Payment System"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/payment-system"
+
       - id: system_design.whatsapp
-        name: Design WhatsApp
+        name: WhatsApp
         difficulty_level: 3
         prerequisites: [system_design.message_queues, system_design.load_balancing]
         resources:
-          - type: video
-            title: "Design WhatsApp (Gaurav Sen)"
-            url: "https://www.youtube.com/watch?v=vvhC64hQZMk"
+          - type: article
+            title: "HelloInterview: WhatsApp"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/whatsapp"
+
+      - id: system_design.instagram
+        name: Instagram
+        difficulty_level: 3
+        prerequisites: [system_design.caching, system_design.sharding]
+        resources:
+          - type: article
+            title: "HelloInterview: Instagram"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/instagram"
+
+      - id: system_design.fb_news_feed
+        name: Facebook News Feed
+        difficulty_level: 3
+        prerequisites: [system_design.caching, system_design.sharding]
+        resources:
+          - type: article
+            title: "HelloInterview: FB News Feed"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/fb-news-feed"
+
+      - id: system_design.fb_live_comments
+        name: FB Live Comments
+        difficulty_level: 3
+        prerequisites: [system_design.message_queues, system_design.load_balancing]
+
+      - id: system_design.google_docs
+        name: Google Docs (Collab Editing)
+        difficulty_level: 3
+        prerequisites: [system_design.cap_theorem, system_design.leader_election]
+        resources:
+          - type: article
+            title: "HelloInterview: Google Docs"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/google-docs"
+
+      - id: system_design.dropbox
+        name: Dropbox / Google Drive
+        difficulty_level: 3
+        prerequisites: [system_design.sharding, system_design.message_queues]
+        resources:
+          - type: article
+            title: "HelloInterview: Dropbox"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/dropbox"
 
       - id: system_design.youtube
-        name: Design YouTube
+        name: YouTube
         difficulty_level: 3
         prerequisites: [system_design.caching, system_design.load_balancing]
         resources:
-          - type: video
-            title: "Design YouTube (ByteByteGo)"
-            url: "https://www.youtube.com/watch?v=jPKTo1iGQiE"
+          - type: article
+            title: "HelloInterview: YouTube"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/youtube"
 
       - id: system_design.uber
-        name: Design Uber
+        name: Uber
         difficulty_level: 3
         prerequisites: [system_design.sharding, system_design.load_balancing]
         resources:
-          - type: video
-            title: "Design Uber (Gaurav Sen)"
-            url: "https://www.youtube.com/watch?v=umWABit-wbk"
+          - type: article
+            title: "HelloInterview: Uber"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/uber"
+
+      - id: system_design.metrics_monitoring
+        name: Metrics & Monitoring
+        difficulty_level: 3
+        prerequisites: [system_design.message_queues]
+        resources:
+          - type: article
+            title: "HelloInterview: Metrics"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/metrics-monitoring"
+
+      - id: system_design.distributed_cache
+        name: Distributed Cache
+        difficulty_level: 3
+        prerequisites: [system_design.caching, system_design.consistent_hashing]
+        resources:
+          - type: article
+            title: "HelloInterview: Distributed Cache"
+            url: "https://www.hellointerview.com/learn/system-design/problem-breakdowns/distributed-cache"

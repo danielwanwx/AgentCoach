@@ -104,26 +104,27 @@ class VibeVoiceTTS(TTSEngine):
         self._model.eval()
         self._loaded = True
 
-    def speak(self, text: str) -> None:
+    @staticmethod
+    def _clean_text(text: str) -> str:
+        # Strip markdown/emoji before sending to TTS.
+        import re
+        clean = re.sub(r'[#*_`~\[\](){}|>]', '', text)
+        clean = re.sub(r'https?://\S+', '', clean)
+        clean = re.sub(r'[\U0001f300-\U0001f9ff]', '', clean)
+        clean = re.sub(r'---+', '', clean)
+        clean = re.sub(r'\n{2,}', '. ', clean)
+        clean = re.sub(r'\n', ' ', clean)
+        clean = re.sub(r'\s{2,}', ' ', clean).strip()
+        return clean
+
+    def _generate_audio(self, text: str):
         if not getattr(self, "_loaded", False):
             self._load()
 
-        import tempfile
-        import os
         import torch
 
-        # Strip markdown/emoji before sending to TTS
-        import re
-        clean = re.sub(r'[#*_`~\[\](){}|>]', '', text)  # remove markdown chars
-        clean = re.sub(r'https?://\S+', '', clean)        # remove URLs
-        clean = re.sub(r'[\U0001f300-\U0001f9ff]', '', clean)  # remove emoji
-        clean = re.sub(r'---+', '', clean)                # remove horizontal rules
-        clean = re.sub(r'\n{2,}', '. ', clean)            # paragraph breaks → pause
-        clean = re.sub(r'\n', ' ', clean)                 # remaining newlines
-        clean = re.sub(r'\s{2,}', ' ', clean).strip()     # collapse whitespace
-
         # VibeVoice-TTS expects multi-speaker script format
-        script = f"Speaker 1: {clean}"
+        script = f"Speaker 1: {self._clean_text(text)}"
         voice_args = {}
         if self.voice_sample:
             voice_args["voice_samples"] = [self.voice_sample]
@@ -156,19 +157,53 @@ class VibeVoiceTTS(TTSEngine):
             )
 
         if not output.speech_outputs or output.speech_outputs[0] is None:
-            return
+            return None, 24000
         audio = output.speech_outputs[0][0].float().cpu().numpy()
+        return audio, 24000
+
+    def synthesize_to_file(self, text: str, path: str) -> bool:
+        audio, sample_rate = self._generate_audio(text)
+        if audio is None:
+            return False
+        try:
+            import soundfile as sf
+            sf.write(path, audio, sample_rate)
+        except ImportError:
+            from scipy.io import wavfile
+            import numpy as np
+            wavfile.write(path, sample_rate, (audio * 32767).astype(np.int16))
+        return True
+
+    def synthesize_bytes(self, text: str) -> bytes:
+        import os
+        import tempfile
 
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
             tmp_path = f.name
         try:
-            import soundfile as sf
-            sf.write(tmp_path, audio, 24000)
-        except ImportError:
-            from scipy.io import wavfile
-            wavfile.write(tmp_path, 24000, (audio * 32767).astype(np.int16))
-        subprocess.run(["afplay", tmp_path], check=False)
-        os.unlink(tmp_path)
+            if not self.synthesize_to_file(text, tmp_path):
+                return b""
+            with open(tmp_path, "rb") as f:
+                return f.read()
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+    def speak(self, text: str) -> None:
+        import os
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+            tmp_path = f.name
+        try:
+            if self.synthesize_to_file(text, tmp_path):
+                subprocess.run(["afplay", tmp_path], check=False)
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
 
 import threading

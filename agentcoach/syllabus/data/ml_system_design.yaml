@@ -1,0 +1,83 @@
+domain: ml_system_design
+name: ML System Design
+
+topics:
+  - id: ml_system_design.foundations
+    name: Foundations
+    children:
+      - id: ml_system_design.framing
+        name: Problem Framing
+        difficulty_level: 1
+        prerequisites: []
+        resources:
+          - type: article
+            title: "HelloInterview: ML Intro"
+            url: "https://www.hellointerview.com/learn/ml-system-design/in-a-hurry/introduction"
+
+      - id: ml_system_design.evaluation
+        name: Offline / Online Evaluation
+        difficulty_level: 2
+        prerequisites: [ml_system_design.framing]
+        resources:
+          - type: article
+            title: "HelloInterview: Evaluation"
+            url: "https://www.hellointerview.com/learn/ml-system-design/core-concepts/evaluation"
+
+      - id: ml_system_design.generalization
+        name: Generalization & Drift
+        difficulty_level: 3
+        prerequisites: [ml_system_design.evaluation]
+        resources:
+          - type: article
+            title: "HelloInterview: Generalization"
+            url: "https://www.hellointerview.com/learn/ml-system-design/core-concepts/generalization"
+
+      - id: ml_system_design.delivery
+        name: Serving & Delivery
+        difficulty_level: 2
+        prerequisites: [ml_system_design.framing]
+
+  - id: ml_system_design.problems
+    name: Classic Problems
+    children:
+      - id: ml_system_design.video_recommendations
+        name: Video Recommendations
+        difficulty_level: 3
+        prerequisites: [ml_system_design.framing, ml_system_design.evaluation]
+        resources:
+          - type: article
+            title: "HelloInterview: Video Recommendations"
+            url: "https://www.hellointerview.com/learn/ml-system-design/problem-breakdowns/video-recommendations"
+
+      - id: ml_system_design.bot_detection
+        name: Bot Detection
+        difficulty_level: 3
+        prerequisites: [ml_system_design.framing]
+        resources:
+          - type: article
+            title: "HelloInterview: Bot Detection"
+            url: "https://www.hellointerview.com/learn/ml-system-design/problem-breakdowns/bot-detection"
+
+      - id: ml_system_design.harmful_content
+        name: Harmful Content Moderation
+        difficulty_level: 3
+        prerequisites: [ml_system_design.framing]
+        resources:
+          - type: article
+            title: "HelloInterview: Harmful Content"
+            url: "https://www.hellointerview.com/learn/ml-system-design/problem-breakdowns/harmful-content"
+
+      - id: ml_system_design.search_ranking
+        name: Search Ranking
+        difficulty_level: 3
+        prerequisites: [ml_system_design.evaluation]
+
+      - id: ml_system_design.ads_ctr
+        name: Ads CTR Prediction
+        difficulty_level: 3
+        prerequisites: [ml_system_design.evaluation]
+
+      - id: ml_system_design.feed_ranking
+        name: News-Feed Ranking
+        difficulty_level: 3
+        prerequisites: [ml_system_design.evaluation]
